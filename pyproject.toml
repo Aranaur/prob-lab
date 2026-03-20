@@ -1,0 +1,10 @@
+[project]
+name = "ci-explorer"
+version = "0.1.0"
+requires-python = ">= 3.11.14"
+dependencies = [
+    "matplotlib>=3.10.8",
+    "numpy>=2.4.3",
+    "scipy>=1.17.1",
+    "shiny>=1.5.1",
+]

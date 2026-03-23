@@ -202,10 +202,16 @@ h1.main-title {
   width: 100%;
 }
 
-/* Label inside full-width ctrl-group: pushes controls to the right */
+/* Label inside full-width ctrl-group: pushes controls to the right.
+   min-width:0 overrides the default min-width:auto so both labels
+   (regardless of text length) start from the same flex-basis and the
+   − buttons align perfectly across rows. */
 .ctrl-group-full > label {
   flex: 1;
+  min-width: 0;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Numeric input in full-width group stretches to match Play button width */

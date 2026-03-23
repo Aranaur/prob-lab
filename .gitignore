@@ -2,3 +2,4 @@
 *.pyo
 __pycache__/
 CLAUDE.md
+.claude/settings.local.json

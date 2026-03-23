@@ -202,6 +202,21 @@ h1.main-title {
   width: 100%;
 }
 
+/* Label inside full-width ctrl-group: pushes controls to the right */
+.ctrl-group-full > label {
+  flex: 1;
+  white-space: nowrap;
+}
+
+/* "Sample:" prefix label in button row */
+.btn-row-label {
+  font-size: 0.74rem;
+  font-weight: 500;
+  color: #94a3b8;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 /* Full-width button (row 4 — Reset) */
 .btn-full {
   width: 100%;

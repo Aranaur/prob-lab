@@ -114,11 +114,12 @@ app_ui = ui.page_fluid(
 
             # Sampling controls
             ui.div(
-                # Row 1: 3 equal sample buttons
+                # Row 1: label + 3 equal sample buttons
                 ui.div(
-                    ui.input_action_button("btn_sample_1",   "Sample \u00d71",   class_="btn-ctrl btn-sample btn-flex"),
-                    ui.input_action_button("btn_sample_50",  "Sample \u00d750",  class_="btn-ctrl btn-sample btn-flex"),
-                    ui.input_action_button("btn_sample_100", "Sample \u00d7100", class_="btn-ctrl btn-sample btn-flex"),
+                    ui.tags.span("Sample:", class_="btn-row-label"),
+                    ui.input_action_button("btn_sample_1",   "\u00d71",   class_="btn-ctrl btn-sample btn-flex"),
+                    ui.input_action_button("btn_sample_50",  "\u00d750",  class_="btn-ctrl btn-sample btn-flex"),
+                    ui.input_action_button("btn_sample_100", "\u00d7100", class_="btn-ctrl btn-sample btn-flex"),
                     class_="sidebar-btn-row",
                 ),
                 # Row 2: sample size
@@ -692,14 +693,12 @@ def server(input, output, session):
             ax.legend(fontsize=7, loc="upper right",
                       facecolor="#1e293b", edgecolor="#334155",
                       labelcolor="#cbd5e1")
-            # Stats annotation: empirical vs theoretical
-            stats_text = (
-                f"\u0305x\u0305 = {emp_mean:+.3f}   (\u03bc = {mu:+.3f})\n"
-                f"SE\u2091\u2098\u209a = {emp_se:.3f}   (\u03c3/\u221an = {theo_se:.3f})"
-            )
-            ax.text(0.02, 0.97, stats_text,
+            # Stats annotation: empirical vs theoretical (mathtext)
+            line1 = rf"$\bar{{x}}$ = {emp_mean:+.3f}   ($\mu$ = {mu:+.3f})"
+            line2 = rf"SE = {emp_se:.3f}   ($\sigma/\sqrt{{n}}$ = {theo_se:.3f})"
+            ax.text(0.02, 0.97, line1 + "\n" + line2,
                     transform=ax.transAxes, ha="left", va="top",
-                    fontsize=7.5, color="#cbd5e1", family="monospace",
+                    fontsize=7.5, color="#cbd5e1",
                     bbox={"boxstyle": "round,pad=0.35", "facecolor": "#1e293b",
                           "edgecolor": "#475569", "alpha": 0.85})
         fig.tight_layout()

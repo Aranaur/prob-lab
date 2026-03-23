@@ -37,7 +37,8 @@ def dark_style(ax: plt.Axes):
 # =============================================================================
 app_ui = ui.page_fluid(
     ui.tags.head(
-        ui.tags.link(rel="stylesheet", href="style.css")
+        ui.tags.link(rel="stylesheet", href="style.css"),
+        ui.HTML('<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>')
     ),
 
     # JS for toggling play / pause button class
@@ -68,10 +69,18 @@ app_ui = ui.page_fluid(
     ),
 
     # Top controls row 2
+    ui.output_ui("dynamic_params"),
+
+    # Formulas section
     ui.div(
-        ui.input_numeric("pop_mean", "Population Mean (\u03bc)", value=0.0, step=0.5, width="100%"),
-        ui.input_numeric("pop_sd", "Population Std Dev (\u03c3)", value=1.0, min=0.1, step=0.5, width="100%"),
-        class_="slider-row",
+        ui.div(
+            ui.div("THEORETICAL FORMULAS", class_="card-title", style="text-align: center; margin-bottom: 8px;"),
+            ui.output_ui("formulas_ui"),
+            class_="glass-card formulas-card",
+            style="width: 100%; max-width: 900px; margin: 0 auto; padding: 16px;"
+        ),
+        class_="plot-wrapper",
+        style="margin-bottom: 18px;"
     ),
 
     # Stats cards
@@ -181,6 +190,107 @@ def server(input, output, session):
     is_playing = reactive.value(False)
     speed_ms = reactive.value(0.5)  # seconds
 
+    # ── Dynamic Parameters UI ──
+    @render.ui
+    def dynamic_params():
+        dist = input.pop_dist()
+        if dist == "normal":
+            return ui.div(
+                ui.input_numeric("pop_mean", "Population Mean (\u03bc)", value=0.0, step=0.5, width="100%"),
+                ui.input_numeric("pop_sd", "Population Std Dev (\u03c3)", value=1.0, min=0.1, step=0.5, width="100%"),
+                class_="slider-row",
+            )
+        elif dist == "uniform":
+            return ui.div(
+                ui.input_numeric("pop_min", "Minimum (a)", value=0.0, step=0.5, width="100%"),
+                ui.input_numeric("pop_max", "Maximum (b)", value=1.0, step=0.5, width="100%"),
+                class_="slider-row",
+            )
+        elif dist == "exponential":
+            return ui.div(
+                ui.input_numeric("pop_lambda", "Rate (\u03bb)", value=1.0, min=0.1, step=0.5, width="100%"),
+                ui.div(style="width: 100%;"), # Empty placeholder
+                class_="slider-row",
+            )
+
+    # ── Interactive Formulas ──
+    @render.ui
+    def formulas_ui():
+        dist = input.pop_dist()
+        
+        n = input.sample_size()
+        if n is None or n < 2:
+            n = 5
+        n = int(n)
+        conf = input.conf_level() / 100.0
+        tc = float(stats.t.ppf(1 - (1 - conf) / 2, df=n - 1))
+        
+        if dist == "normal":
+            dist_name = "Normal Distribution"
+            param_math = r"\[ \mu = \text{Mean}, \quad \sigma = \text{SD} \]"
+        elif dist == "uniform":
+            dist_name = "Uniform Distribution"
+            param_math = r"\[ \mu = \frac{a+b}{2}, \quad \sigma = \frac{b-a}{\sqrt{12}} \]"
+        elif dist == "exponential":
+            dist_name = "Exponential Distribution"
+            param_math = r"\[ \mu = \frac{1}{\lambda}, \quad \sigma = \frac{1}{\lambda} \]"
+        else:
+            dist_name = "Distribution"
+            param_math = ""
+            
+        ci_math = rf"\[ \text{{CI}} = \bar{{x}} \pm t_{{{n-1}, {conf*100:g}\%}} \times \frac{{s}}{{\sqrt{{n}}}} \implies \bar{{x}} \pm {tc:.3f} \times \frac{{s}}{{\sqrt{{{n}}}}} \]"
+        
+        js_trigger = ui.tags.script("if (window.MathJax) { MathJax.typesetPromise(); }")
+        
+        return ui.TagList(
+            ui.div(
+                ui.div(dist_name + " Parameters", style="font-weight: 500; color: #94a3b8; font-size: 0.85rem; text-align: center;"),
+                ui.HTML(param_math),
+                style="margin-bottom: 2px;"
+            ),
+            ui.div(
+                ui.div("Confidence Interval", style="font-weight: 500; color: #94a3b8; font-size: 0.85rem; text-align: center;"),
+                ui.HTML(ci_math),
+                style="margin-bottom: 2px;"
+            ),
+            js_trigger
+        )
+
+    # ── True Parameters ──
+    @reactive.calc
+    def true_params():
+        dist = input.pop_dist()
+        if dist == "normal":
+            try:
+                mu = float(input.pop_mean() or 0.0)
+                sigma = float(input.pop_sd() or 1.0)
+            except Exception:
+                mu, sigma = 0.0, 1.0
+        elif dist == "uniform":
+            try:
+                a = float(input.pop_min() or 0.0)
+                b = float(input.pop_max() or 1.0)
+                if a > b: a, b = b, a
+            except Exception:
+                a, b = 0.0, 1.0
+            mu = (a + b) / 2.0
+            sigma = (b - a) / np.sqrt(12)
+        elif dist == "exponential":
+            try:
+                lam = float(input.pop_lambda() or 1.0)
+            except Exception:
+                lam = 1.0
+            if lam <= 0: lam = 1e-6
+            mu = 1.0 / lam
+            sigma = 1.0 / lam
+        else:
+            mu, sigma = 0.0, 1.0
+            
+        if sigma <= 0:
+            sigma = 1e-6
+            
+        return mu, sigma
+
     # ── Sample size +/- ──
     @reactive.effect
     @reactive.event(input.n_minus)
@@ -263,10 +373,7 @@ def server(input, output, session):
         current_drawn = total_drawn()
         current_covered = total_covered()
 
-        mu = float(input.pop_mean() or 0.0)
-        sigma = float(input.pop_sd() or 1.0)
-        if sigma <= 0:
-            sigma = 1e-6
+        mu, sigma = true_params()
 
         # Vectorized data generation
         # shape: (n, k) -> we take mean along axis 0
@@ -274,10 +381,21 @@ def server(input, output, session):
         if dist_choice == "normal":
             samps = np.random.normal(mu, sigma, size=(n, k))
         elif dist_choice == "uniform":
-            limit = np.sqrt(3) * sigma
-            samps = np.random.uniform(mu - limit, mu + limit, size=(n, k))
+            try:
+                a = float(input.pop_min() or 0.0)
+                b = float(input.pop_max() or 1.0)
+                if a > b: a, b = b, a
+            except Exception:
+                a, b = 0.0, 1.0
+            samps = np.random.uniform(a, b, size=(n, k))
         elif dist_choice == "exponential":
-            samps = (np.random.exponential(1.0, size=(n, k)) - 1.0) * sigma + mu
+            try:
+                lam = float(input.pop_lambda() or 1.0)
+            except Exception:
+                lam = 1.0
+            if lam <= 0: lam = 1e-6
+            # np.random.exponential takes the scale parameter (beta = 1/lambda)
+            samps = np.random.exponential(1.0 / lam, size=(n, k))
         else:
             samps = np.random.normal(mu, sigma, size=(n, k))
         means = np.mean(samps, axis=0)
@@ -352,10 +470,7 @@ def server(input, output, session):
         if n is None or n < 2:
             n = 5
         
-        mu = float(input.pop_mean() or 0.0)
-        sigma = float(input.pop_sd() or 1.0)
-        if sigma <= 0:
-            sigma = 1e-6
+        mu, sigma = true_params()
 
         se_theory = sigma / np.sqrt(n)
         x_lo = mu - 5 * se_theory

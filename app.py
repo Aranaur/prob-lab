@@ -65,138 +65,161 @@ app_ui = ui.page_fluid(
     # Title
     ui.tags.h1("Interpreting Confidence Intervals", class_="main-title"),
 
-    # The Misconception Banner
+    # ── Two-column body ──────────────────────────────────────────────────────
     ui.div(
-        ui.div(
-            ui.tags.i(class_="info-icon"),
-            ui.tags.strong(" Common Misconception: "),
-            "A ", ui.output_text("conf_pct", inline=True),
-            " confidence interval does NOT mean there is a ",
-            ui.output_text("conf_pct2", inline=True),
-            " probability that the true \u03bc lies within a single calculated interval.",
-            ui.tags.br(),
-            ui.tags.strong("The Reality: "),
-            "The true mean \u03bc is fixed. Confidence refers to the ",
-            ui.tags.em("method"), ": if we repeat the sampling process many times, ",
-            ui.output_text("conf_pct3", inline=True),
-            " of the resulting intervals will contain the true \u03bc.",
-            class_="info-banner-text"
-        ),
-        class_="info-banner-wrapper"
-    ),
 
-    # Top controls row 1
-    ui.div(
-        ui.input_slider("conf_level",
-                        ui.TagList("Confidence Level (%)", tip("The probability that the interval estimation procedure will produce an interval containing the true parameter.")),
-                        min=50, max=99, value=95, step=1, width="100%"),
-        ui.input_select("pop_dist",
-                        ui.TagList("Population Distribution", tip("The theoretical probability distribution from which random samples are drawn.")),
-                        choices={"normal": "Normal", "uniform": "Uniform", "exponential": "Exponential (Right-skewed)"},
-                        selected="normal", width="100%"),
-        class_="slider-row",
-    ),
+        # ── LEFT SIDEBAR: controls ─────────────────────────────────────────
+        ui.div(
 
-    # Top controls row 2
-    ui.output_ui("dynamic_params"),
-
-    # Formulas section
-    ui.div(
-        ui.div(
-            ui.div("THEORETICAL FORMULAS", class_="card-title", style="text-align: center; margin-bottom: 8px;"),
-            ui.output_ui("formulas_ui"),
-            class_="glass-card formulas-card",
-            style="width: 100%; margin: 0 auto;"
-        ),
-        class_="plot-wrapper",
-        style="margin-bottom: 8px;"
-    ),
-
-    # Stats cards
-    ui.div(
-        ui.div(
-            ui.div("CI COVERAGE ", tip("Percentage of all generated CIs that contain the true \u03bc."), class_="stat-label"),
-            ui.div(ui.output_text("cov_rate", inline=True), class_="stat-value coverage"),
-            class_="stat-card",
-        ),
-        ui.div(
-            ui.div("\u03bc INCLUDED ", tip("Count of intervals where the true \u03bc falls inside the CI."), class_="stat-label"),
-            ui.div(ui.output_text("num_covered", inline=True), class_="stat-value included"),
-            class_="stat-card",
-        ),
-        ui.div(
-            ui.div("\u03bc MISSED ", tip("Count of intervals where the true \u03bc falls outside the CI."), class_="stat-label"),
-            ui.div(ui.output_text("num_missed", inline=True), class_="stat-value missed"),
-            class_="stat-card",
-        ),
-        ui.div(
-            ui.div("SAMPLES DRAWN ", tip("Total number of random samples generated so far."), class_="stat-label"),
-            ui.div(ui.output_text("num_total", inline=True), class_="stat-value total"),
-            class_="stat-card",
-        ),
-        class_="stats-row",
-    ),
-
-    # Two-panel plots
-    ui.div(
-        # Left panel – proportion + width dist
-        ui.div(
+            # Misconception banner
             ui.div(
-                ui.div("PROPORTION OF CIs INCLUDING \u03bc", class_="card-title"),
-                ui.output_plot("prop_plot", height="160px"),
-                class_="glass-card",
+                ui.tags.i(class_="info-icon"),
+                ui.tags.strong(" Common Misconception: "),
+                "A ", ui.output_text("conf_pct", inline=True),
+                " CI does NOT mean a ",
+                ui.output_text("conf_pct2", inline=True),
+                " probability the true \u03bc lies within it.",
+                ui.tags.br(),
+                ui.tags.strong("Reality: "),
+                "If we repeat sampling many times, ",
+                ui.output_text("conf_pct3", inline=True),
+                " of intervals will contain the true \u03bc.",
+                class_="info-banner-text",
             ),
-            ui.div(
-                ui.div("CI WIDTH DISTRIBUTION", class_="card-title"),
-                ui.output_plot("width_plot", height="160px"),
-                class_="glass-card",
-            ),
-            class_="panel-left",
-        ),
-        # Right panel – main CI chart
-        ui.div(
-            ui.div(
-                ui.div("CONFIDENCE INTERVALS", class_="card-title"),
-                ui.output_plot("ci_plot", height="355px"),
-                class_="glass-card",
-            ),
-            class_="panel-right",
-        ),
-        class_="plot-wrapper",
-    ),
 
-    # Controls row
-    ui.div(
-        ui.div(
-            ui.tags.label("Sample size"),
-            ui.input_action_button("n_minus", "\u2212", class_="btn-ctrl btn-pm"),
-            ui.input_numeric("sample_size", label="", value=5, min=2, max=500, step=1, width="44px"),
-            ui.input_action_button("n_plus", "+", class_="btn-ctrl btn-pm"),
-            class_="ctrl-group",
-            style="margin-left: auto;"
-        ),
-        ui.input_action_button("btn_sample_1", "Sample \u00d71", class_="btn-ctrl btn-sample"),
-        ui.input_action_button("btn_sample_50", "Sample \u00d750", class_="btn-ctrl btn-sample"),
-        ui.div(
-            ui.tags.label("Speed"),
-            ui.input_action_button("speed_minus", "\u2212", class_="btn-ctrl btn-pm"),
-            ui.input_action_button("btn_play", "Play", class_="btn-ctrl btn-play"),
-            ui.input_action_button("speed_plus", "+", class_="btn-ctrl btn-pm"),
-            class_="ctrl-group",
-            style="margin-left: auto;"
-        ),
-        ui.input_action_button("btn_reset", "Reset", class_="btn-ctrl btn-reset"),
-        class_="controls-row",
-    ),
+            # Confidence level slider
+            ui.input_slider(
+                "conf_level",
+                ui.TagList("Confidence Level (%)", tip("The probability that the interval estimation procedure will produce an interval containing the true parameter.")),
+                min=50, max=99, value=95, step=1, width="100%",
+            ),
 
-    # Footer links
-    ui.div(
-        ui.tags.a("LinkedIn", href="https://www.linkedin.com/in/ihormiroshnychenko/", target="_blank"),
-        " \u2022 ",
-        ui.tags.a("Telegram", href="https://t.me/araprof", target="_blank"),
-        " \u2022 ",
-        ui.tags.a("Website", href="https://aranaur.rbind.io/", target="_blank"),
-        class_="footer-links",
+            # Distribution selector
+            ui.input_select(
+                "pop_dist",
+                ui.TagList("Population Distribution", tip("The theoretical probability distribution from which random samples are drawn.")),
+                choices={"normal": "Normal", "uniform": "Uniform", "exponential": "Exponential (Right-skewed)"},
+                selected="normal", width="100%",
+            ),
+
+            # Dynamic distribution parameters
+            ui.output_ui("dynamic_params"),
+
+            # Theoretical formulas
+            ui.div(
+                ui.div("THEORETICAL FORMULAS", class_="card-title", style="text-align:center;margin-bottom:6px;"),
+                ui.output_ui("formulas_ui"),
+                class_="glass-card formulas-card",
+            ),
+
+            # Sampling controls
+            ui.div(
+                # Row 1: sample size + sample buttons
+                ui.div(
+                    ui.div(
+                        ui.tags.label("n"),
+                        ui.input_action_button("n_minus", "\u2212", class_="btn-ctrl btn-pm"),
+                        ui.input_numeric("sample_size", label="", value=5, min=2, max=500, step=1, width="44px"),
+                        ui.input_action_button("n_plus", "+", class_="btn-ctrl btn-pm"),
+                        class_="ctrl-group",
+                    ),
+                    ui.input_action_button("btn_sample_1", "Sample \u00d71", class_="btn-ctrl btn-sample"),
+                    ui.input_action_button("btn_sample_50", "Sample \u00d750", class_="btn-ctrl btn-sample"),
+                    class_="sidebar-btn-row",
+                ),
+                # Row 2: speed + play + reset
+                ui.div(
+                    ui.div(
+                        ui.tags.label("Speed"),
+                        ui.input_action_button("speed_minus", "\u2212", class_="btn-ctrl btn-pm"),
+                        ui.input_action_button("btn_play", "Play", class_="btn-ctrl btn-play"),
+                        ui.input_action_button("speed_plus", "+", class_="btn-ctrl btn-pm"),
+                        class_="ctrl-group",
+                    ),
+                    ui.input_action_button("btn_reset", "Reset", class_="btn-ctrl btn-reset"),
+                    class_="sidebar-btn-row",
+                ),
+                class_="sidebar-controls",
+            ),
+
+            # Footer
+            ui.div(
+                ui.tags.a("LinkedIn", href="https://www.linkedin.com/in/ihormiroshnychenko/", target="_blank"),
+                " \u2022 ",
+                ui.tags.a("Telegram", href="https://t.me/araprof", target="_blank"),
+                " \u2022 ",
+                ui.tags.a("Website", href="https://aranaur.rbind.io/", target="_blank"),
+                class_="footer-links",
+            ),
+
+            class_="sidebar",
+        ),
+
+        # ── RIGHT MAIN PANEL: stats + charts ──────────────────────────────
+        ui.div(
+
+            # Stats row
+            ui.div(
+                ui.div(
+                    ui.div("CI COVERAGE ", tip("Percentage of all generated CIs that contain the true \u03bc."), class_="stat-label"),
+                    ui.div(ui.output_text("cov_rate", inline=True), class_="stat-value coverage"),
+                    class_="stat-card",
+                ),
+                ui.div(
+                    ui.div("\u03bc INCLUDED ", tip("Count of intervals where the true \u03bc falls inside the CI."), class_="stat-label"),
+                    ui.div(ui.output_text("num_covered", inline=True), class_="stat-value included"),
+                    class_="stat-card",
+                ),
+                ui.div(
+                    ui.div("\u03bc MISSED ", tip("Count of intervals where the true \u03bc falls outside the CI."), class_="stat-label"),
+                    ui.div(ui.output_text("num_missed", inline=True), class_="stat-value missed"),
+                    class_="stat-card",
+                ),
+                ui.div(
+                    ui.div("SAMPLES DRAWN ", tip("Total number of random samples generated so far."), class_="stat-label"),
+                    ui.div(ui.output_text("num_total", inline=True), class_="stat-value total"),
+                    class_="stat-card",
+                ),
+                class_="stats-row",
+            ),
+
+            # Charts area
+            ui.div(
+                # Left column: 3 small charts
+                ui.div(
+                    ui.div(
+                        ui.div("PROPORTION OF CIs INCLUDING \u03bc", class_="card-title"),
+                        ui.output_plot("prop_plot", fill=True),
+                        class_="glass-card chart-card",
+                    ),
+                    ui.div(
+                        ui.div("CI WIDTH DISTRIBUTION", class_="card-title"),
+                        ui.output_plot("width_plot", fill=True),
+                        class_="glass-card chart-card",
+                    ),
+                    ui.div(
+                        ui.div("SAMPLE MEANS DISTRIBUTION (CLT)", class_="card-title"),
+                        ui.output_plot("means_plot", fill=True),
+                        class_="glass-card chart-card",
+                    ),
+                    class_="charts-col-left",
+                ),
+                # Right column: main CI chart
+                ui.div(
+                    ui.div(
+                        ui.div("CONFIDENCE INTERVALS", class_="card-title"),
+                        ui.output_plot("ci_plot", fill=True),
+                        class_="glass-card chart-card",
+                    ),
+                    class_="charts-col-right",
+                ),
+                class_="charts-area",
+            ),
+
+            class_="main-panel",
+        ),
+
+        class_="app-body",
     ),
 )
 
@@ -214,6 +237,7 @@ def server(input, output, session):
     # Each entry: dict(id, mean, lower, upper, covered, width)
     history = reactive.value([])
     all_widths = reactive.value([])
+    all_means = reactive.value([])
     prop_x = reactive.value([])
     prop_y = reactive.value([])
     is_playing = reactive.value(False)
@@ -396,6 +420,7 @@ def server(input, output, session):
         total_covered.set(0)
         history.set([])
         all_widths.set([])
+        all_means.set([])
         prop_x.set([])
         prop_y.set([])
         is_playing.set(False)
@@ -472,8 +497,9 @@ def server(input, output, session):
             hist = hist[-MAX_DISPLAY:]
         history.set(hist)
 
-        # All widths
+        # All widths and means
         all_widths.set(all_widths() + [e["width"] for e in new_entries])
+        all_means.set(all_means() + [e["mean"] for e in new_entries])
 
         # Running proportion
         prop_x.set(prop_x() + [current_drawn])
@@ -514,7 +540,7 @@ def server(input, output, session):
     # ── Main CI plot ──
     @render.plot(alt="Confidence Intervals")
     def ci_plot():
-        fig, ax = plt.subplots(figsize=(8, 4.2), facecolor=DARK_BG)
+        fig, ax = plt.subplots(figsize=(9, 9), facecolor=DARK_BG)
         dark_style(ax)
 
         n = input.sample_size()
@@ -563,7 +589,7 @@ def server(input, output, session):
     # ── Proportion line chart ──
     @render.plot(alt="Proportion of CIs including mu")
     def prop_plot():
-        fig, ax = plt.subplots(figsize=(4, 1.9), facecolor=DARK_BG)
+        fig, ax = plt.subplots(figsize=(4, 3), facecolor=DARK_BG)
         dark_style(ax)
 
         conf_target = input.conf_level() / 100.0
@@ -591,7 +617,7 @@ def server(input, output, session):
     # ── CI width distribution ──
     @render.plot(alt="CI Width Distribution")
     def width_plot():
-        fig, ax = plt.subplots(figsize=(4, 1.9), facecolor=DARK_BG)
+        fig, ax = plt.subplots(figsize=(4, 3), facecolor=DARK_BG)
         dark_style(ax)
 
         widths = all_widths()
@@ -611,6 +637,45 @@ def server(input, output, session):
             ax.plot(xs, kde(xs), color="#a5b4fc", linewidth=1.0)
             ax.set_xlabel("CI Width", fontsize=9)
             ax.set_yticks([])
+        fig.tight_layout()
+        plt.close(fig)
+        return fig
+
+    # ── Sample means distribution (CLT) ──
+    @render.plot(alt="Sample Means Distribution")
+    def means_plot():
+        fig, ax = plt.subplots(figsize=(4, 3), facecolor=DARK_BG)
+        dark_style(ax)
+
+        sample_means = all_means()
+        mu, sigma = true_params()
+
+        if len(sample_means) < 3:
+            ax.text(0.5, 0.5, "Collecting data\u2026",
+                    ha="center", va="center", color="#64748b",
+                    fontsize=11, transform=ax.transAxes)
+            ax.set_xticks([])
+            ax.set_yticks([])
+        else:
+            ax.hist(sample_means, bins="auto", density=True,
+                    color="#c084fc", alpha=0.5, edgecolor="#d8b4fe", linewidth=0.6)
+            # Theoretical normal curve (CLT): N(mu, sigma/sqrt(n))
+            n = input.sample_size()
+            if n is None or n < 2:
+                n = 5
+            n = int(n)
+            se = sigma / np.sqrt(n)
+            xs = np.linspace(min(sample_means), max(sample_means), 200)
+            ax.plot(xs, stats.norm.pdf(xs, mu, se),
+                    color="#d8b4fe", linewidth=1.2, linestyle="--",
+                    label=f"N(\u03bc, \u03c3/\u221an)")
+            # True mean line
+            ax.axvline(mu, color="#f59e0b", linewidth=0.9, linestyle="--", zorder=5)
+            ax.set_xlabel("Sample mean (\u0304x)", fontsize=9)
+            ax.set_yticks([])
+            ax.legend(fontsize=7, loc="upper right",
+                      facecolor="#1e293b", edgecolor="#334155",
+                      labelcolor="#cbd5e1")
         fig.tight_layout()
         plt.close(fig)
         return fig

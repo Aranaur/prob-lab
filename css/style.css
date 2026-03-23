@@ -190,11 +190,21 @@ h1.main-title {
   flex-wrap: nowrap;
 }
 
-/* Sample buttons stretch equally across the full row */
+/* Stretch element to fill remaining row space */
 .btn-flex {
   flex: 1;
   text-align: center;
   justify-content: center;
+}
+
+/* Full-width ctrl-group (rows 2 & 3) */
+.ctrl-group-full {
+  width: 100%;
+}
+
+/* Full-width button (row 4 — Reset) */
+.btn-full {
+  width: 100%;
 }
 
 /* ── ctrl-group (n + speed) ───────────────────────────────────────────────── */

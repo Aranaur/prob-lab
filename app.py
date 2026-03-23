@@ -114,29 +114,38 @@ app_ui = ui.page_fluid(
 
             # Sampling controls
             ui.div(
-                # Row 1: equal-width sample buttons
+                # Row 1: 3 equal sample buttons
                 ui.div(
-                    ui.input_action_button("btn_sample_1", "Sample \u00d71", class_="btn-ctrl btn-sample btn-flex"),
-                    ui.input_action_button("btn_sample_50", "Sample \u00d750", class_="btn-ctrl btn-sample btn-flex"),
+                    ui.input_action_button("btn_sample_1",   "Sample \u00d71",   class_="btn-ctrl btn-sample btn-flex"),
+                    ui.input_action_button("btn_sample_50",  "Sample \u00d750",  class_="btn-ctrl btn-sample btn-flex"),
+                    ui.input_action_button("btn_sample_100", "Sample \u00d7100", class_="btn-ctrl btn-sample btn-flex"),
                     class_="sidebar-btn-row",
                 ),
-                # Row 2: n group + speed/play group + reset
+                # Row 2: sample size
                 ui.div(
                     ui.div(
-                        ui.tags.label("n"),
+                        ui.tags.label("Sample size (n)"),
                         ui.input_action_button("n_minus", "\u2212", class_="btn-ctrl btn-pm"),
                         ui.input_numeric("sample_size", label="", value=5, min=2, max=500, step=1, width="40px"),
                         ui.input_action_button("n_plus", "+", class_="btn-ctrl btn-pm"),
-                        class_="ctrl-group",
+                        class_="ctrl-group ctrl-group-full",
                     ),
+                    class_="sidebar-btn-row",
+                ),
+                # Row 3: speed + play
+                ui.div(
                     ui.div(
                         ui.tags.label("Speed"),
                         ui.input_action_button("speed_minus", "\u2212", class_="btn-ctrl btn-pm"),
-                        ui.input_action_button("btn_play", "Play", class_="btn-ctrl btn-play"),
+                        ui.input_action_button("btn_play", "Play", class_="btn-ctrl btn-play btn-flex"),
                         ui.input_action_button("speed_plus", "+", class_="btn-ctrl btn-pm"),
-                        class_="ctrl-group",
+                        class_="ctrl-group ctrl-group-full",
                     ),
-                    ui.input_action_button("btn_reset", "Reset", class_="btn-ctrl btn-reset"),
+                    class_="sidebar-btn-row",
+                ),
+                # Row 4: reset
+                ui.div(
+                    ui.input_action_button("btn_reset", "Reset", class_="btn-ctrl btn-reset btn-full"),
                     class_="sidebar-btn-row",
                 ),
                 class_="sidebar-controls",
@@ -412,6 +421,11 @@ def server(input, output, session):
     def _sample_50():
         draw_samples(50)
 
+    @reactive.effect
+    @reactive.event(input.btn_sample_100)
+    def _sample_100():
+        draw_samples(100)
+
     # ── Reset ──
     @reactive.effect
     @reactive.event(input.btn_reset, input.pop_dist)
@@ -664,9 +678,11 @@ def server(input, output, session):
             if n is None or n < 2:
                 n = 5
             n = int(n)
-            se = sigma / np.sqrt(n)
+            theo_se = sigma / np.sqrt(n)
+            emp_mean = float(np.mean(sample_means))
+            emp_se   = float(np.std(sample_means, ddof=1))
             xs = np.linspace(min(sample_means), max(sample_means), 200)
-            ax.plot(xs, stats.norm.pdf(xs, mu, se),
+            ax.plot(xs, stats.norm.pdf(xs, mu, theo_se),
                     color="#d8b4fe", linewidth=1.2, linestyle="--",
                     label=f"N(\u03bc, \u03c3/\u221an)")
             # True mean line
@@ -676,6 +692,16 @@ def server(input, output, session):
             ax.legend(fontsize=7, loc="upper right",
                       facecolor="#1e293b", edgecolor="#334155",
                       labelcolor="#cbd5e1")
+            # Stats annotation: empirical vs theoretical
+            stats_text = (
+                f"\u0305x\u0305 = {emp_mean:+.3f}   (\u03bc = {mu:+.3f})\n"
+                f"SE\u2091\u2098\u209a = {emp_se:.3f}   (\u03c3/\u221an = {theo_se:.3f})"
+            )
+            ax.text(0.02, 0.97, stats_text,
+                    transform=ax.transAxes, ha="left", va="top",
+                    fontsize=7.5, color="#cbd5e1", family="monospace",
+                    bbox={"boxstyle": "round,pad=0.35", "facecolor": "#1e293b",
+                          "edgecolor": "#475569", "alpha": 0.85})
         fig.tight_layout()
         plt.close(fig)
         return fig

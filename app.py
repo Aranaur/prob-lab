@@ -32,6 +32,13 @@ def dark_style(ax: plt.Axes):
     ax.grid(axis="both", color=GRID_COLOR, linewidth=0.3, alpha=0.6)
 
 
+# ── Tooltip helper ────────────────────────────────────────────────────────
+_INFO_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/><path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"/></svg>'
+
+def tip(text: str) -> ui.Tag:
+    """Return a Bootstrap info icon (superscript) with a native hover tooltip."""
+    return ui.HTML(f'<span class="tip-icon" title="{text}">{_INFO_SVG}</span>')
+
 # =============================================================================
 # UI
 # =============================================================================
@@ -58,11 +65,33 @@ app_ui = ui.page_fluid(
     # Title
     ui.tags.h1("Interpreting Confidence Intervals", class_="main-title"),
 
+    # The Misconception Banner
+    ui.div(
+        ui.div(
+            ui.tags.i(class_="info-icon"),
+            ui.tags.strong(" Common Misconception: "),
+            "A ", ui.output_text("conf_pct", inline=True),
+            " confidence interval does NOT mean there is a ",
+            ui.output_text("conf_pct2", inline=True),
+            " probability that the true \u03bc lies within a single calculated interval.",
+            ui.tags.br(),
+            ui.tags.strong("The Reality: "),
+            "The true mean \u03bc is fixed. Confidence refers to the ",
+            ui.tags.em("method"), ": if we repeat the sampling process many times, ",
+            ui.output_text("conf_pct3", inline=True),
+            " of the resulting intervals will contain the true \u03bc.",
+            class_="info-banner-text"
+        ),
+        class_="info-banner-wrapper"
+    ),
+
     # Top controls row 1
     ui.div(
-        ui.input_slider("conf_level", "Confidence Level (%)",
+        ui.input_slider("conf_level",
+                        ui.TagList("Confidence Level (%)", tip("The probability that the interval estimation procedure will produce an interval containing the true parameter.")),
                         min=50, max=99, value=95, step=1, width="100%"),
-        ui.input_select("pop_dist", "Population Distribution", 
+        ui.input_select("pop_dist",
+                        ui.TagList("Population Distribution", tip("The theoretical probability distribution from which random samples are drawn.")),
                         choices={"normal": "Normal", "uniform": "Uniform", "exponential": "Exponential (Right-skewed)"},
                         selected="normal", width="100%"),
         class_="slider-row",
@@ -77,31 +106,31 @@ app_ui = ui.page_fluid(
             ui.div("THEORETICAL FORMULAS", class_="card-title", style="text-align: center; margin-bottom: 8px;"),
             ui.output_ui("formulas_ui"),
             class_="glass-card formulas-card",
-            style="width: 100%; max-width: 900px; margin: 0 auto; padding: 16px;"
+            style="width: 100%; margin: 0 auto;"
         ),
         class_="plot-wrapper",
-        style="margin-bottom: 18px;"
+        style="margin-bottom: 8px;"
     ),
 
     # Stats cards
     ui.div(
         ui.div(
-            ui.div("CI COVERAGE", class_="stat-label"),
+            ui.div("CI COVERAGE ", tip("Percentage of all generated CIs that contain the true \u03bc."), class_="stat-label"),
             ui.div(ui.output_text("cov_rate", inline=True), class_="stat-value coverage"),
             class_="stat-card",
         ),
         ui.div(
-            ui.div("\u03bc INCLUDED", class_="stat-label"),
+            ui.div("\u03bc INCLUDED ", tip("Count of intervals where the true \u03bc falls inside the CI."), class_="stat-label"),
             ui.div(ui.output_text("num_covered", inline=True), class_="stat-value included"),
             class_="stat-card",
         ),
         ui.div(
-            ui.div("\u03bc MISSED", class_="stat-label"),
+            ui.div("\u03bc MISSED ", tip("Count of intervals where the true \u03bc falls outside the CI."), class_="stat-label"),
             ui.div(ui.output_text("num_missed", inline=True), class_="stat-value missed"),
             class_="stat-card",
         ),
         ui.div(
-            ui.div("SAMPLES DRAWN", class_="stat-label"),
+            ui.div("SAMPLES DRAWN ", tip("Total number of random samples generated so far."), class_="stat-label"),
             ui.div(ui.output_text("num_total", inline=True), class_="stat-value total"),
             class_="stat-card",
         ),
@@ -114,12 +143,12 @@ app_ui = ui.page_fluid(
         ui.div(
             ui.div(
                 ui.div("PROPORTION OF CIs INCLUDING \u03bc", class_="card-title"),
-                ui.output_plot("prop_plot", height="190px"),
+                ui.output_plot("prop_plot", height="160px"),
                 class_="glass-card",
             ),
             ui.div(
                 ui.div("CI WIDTH DISTRIBUTION", class_="card-title"),
-                ui.output_plot("width_plot", height="190px"),
+                ui.output_plot("width_plot", height="160px"),
                 class_="glass-card",
             ),
             class_="panel-left",
@@ -128,7 +157,7 @@ app_ui = ui.page_fluid(
         ui.div(
             ui.div(
                 ui.div("CONFIDENCE INTERVALS", class_="card-title"),
-                ui.output_plot("ci_plot", height="420px"),
+                ui.output_plot("ci_plot", height="355px"),
                 class_="glass-card",
             ),
             class_="panel-right",
@@ -196,20 +225,30 @@ def server(input, output, session):
         dist = input.pop_dist()
         if dist == "normal":
             return ui.div(
-                ui.input_numeric("pop_mean", "Population Mean (\u03bc)", value=0.0, step=0.5, width="100%"),
-                ui.input_numeric("pop_sd", "Population Std Dev (\u03c3)", value=1.0, min=0.1, step=0.5, width="100%"),
+                ui.input_numeric("pop_mean",
+                    ui.TagList("Population Mean (\u03bc)", tip("The expected value (center) of the normal distribution.")),
+                    value=0.0, step=0.5, width="100%"),
+                ui.input_numeric("pop_sd",
+                    ui.TagList("Population Std Dev (\u03c3)", tip("Measures the spread of the distribution around the mean.")),
+                    value=1.0, min=0.1, step=0.5, width="100%"),
                 class_="slider-row",
             )
         elif dist == "uniform":
             return ui.div(
-                ui.input_numeric("pop_min", "Minimum (a)", value=0.0, step=0.5, width="100%"),
-                ui.input_numeric("pop_max", "Maximum (b)", value=1.0, step=0.5, width="100%"),
+                ui.input_numeric("pop_min",
+                    ui.TagList("Minimum (a)", tip("The lower bound of the uniform distribution.")),
+                    value=0.0, step=0.5, width="100%"),
+                ui.input_numeric("pop_max",
+                    ui.TagList("Maximum (b)", tip("The upper bound of the uniform distribution.")),
+                    value=1.0, step=0.5, width="100%"),
                 class_="slider-row",
             )
         elif dist == "exponential":
             return ui.div(
-                ui.input_numeric("pop_lambda", "Rate (\u03bb)", value=1.0, min=0.1, step=0.5, width="100%"),
-                ui.div(style="width: 100%;"), # Empty placeholder
+                ui.input_numeric("pop_lambda",
+                    ui.TagList("Rate (\u03bb)", tip("The rate parameter. Higher \u03bb means more frequent events and a smaller mean (1/\u03bb).")),
+                    value=1.0, min=0.1, step=0.5, width="100%"),
+                ui.div(style="width: 100%;"),
                 class_="slider-row",
             )
 
@@ -441,6 +480,18 @@ def server(input, output, session):
         prop_y.set(prop_y() + [current_covered / current_drawn])
 
     # ── Text outputs ──
+    @render.text
+    def conf_pct():
+        return f"{input.conf_level()}%"
+
+    @render.text
+    def conf_pct2():
+        return f"{input.conf_level()}%"
+
+    @render.text
+    def conf_pct3():
+        return f"{input.conf_level()}%"
+
     @render.text
     def cov_rate():
         td = total_drawn()

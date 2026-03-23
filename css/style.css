@@ -187,7 +187,14 @@ h1.main-title {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+}
+
+/* Sample buttons stretch equally across the full row */
+.btn-flex {
+  flex: 1;
+  text-align: center;
+  justify-content: center;
 }
 
 /* ── ctrl-group (n + speed) ───────────────────────────────────────────────── */
@@ -333,19 +340,19 @@ h1.main-title {
   overflow: hidden;
 }
 
-/* Left column: 3 stacked small charts */
+/* Left column: 3 stacked small charts — equal share with CI chart */
 .charts-col-left {
-  width: 280px;
-  flex-shrink: 0;
+  flex: 1;
+  min-width: 220px;
   display: flex;
   flex-direction: column;
   gap: 8px;
   min-height: 0;
 }
 
-/* Right column: main CI chart */
+/* Right column: main CI chart — slightly wider than left */
 .charts-col-right {
-  flex: 1;
+  flex: 1.2;
   min-width: 0;
   display: flex;
   flex-direction: column;

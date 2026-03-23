@@ -114,21 +114,21 @@ app_ui = ui.page_fluid(
 
             # Sampling controls
             ui.div(
-                # Row 1: sample size + sample buttons
+                # Row 1: equal-width sample buttons
+                ui.div(
+                    ui.input_action_button("btn_sample_1", "Sample \u00d71", class_="btn-ctrl btn-sample btn-flex"),
+                    ui.input_action_button("btn_sample_50", "Sample \u00d750", class_="btn-ctrl btn-sample btn-flex"),
+                    class_="sidebar-btn-row",
+                ),
+                # Row 2: n group + speed/play group + reset
                 ui.div(
                     ui.div(
                         ui.tags.label("n"),
                         ui.input_action_button("n_minus", "\u2212", class_="btn-ctrl btn-pm"),
-                        ui.input_numeric("sample_size", label="", value=5, min=2, max=500, step=1, width="44px"),
+                        ui.input_numeric("sample_size", label="", value=5, min=2, max=500, step=1, width="40px"),
                         ui.input_action_button("n_plus", "+", class_="btn-ctrl btn-pm"),
                         class_="ctrl-group",
                     ),
-                    ui.input_action_button("btn_sample_1", "Sample \u00d71", class_="btn-ctrl btn-sample"),
-                    ui.input_action_button("btn_sample_50", "Sample \u00d750", class_="btn-ctrl btn-sample"),
-                    class_="sidebar-btn-row",
-                ),
-                # Row 2: speed + play + reset
-                ui.div(
                     ui.div(
                         ui.tags.label("Speed"),
                         ui.input_action_button("speed_minus", "\u2212", class_="btn-ctrl btn-pm"),
@@ -185,8 +185,13 @@ app_ui = ui.page_fluid(
 
             # Charts area
             ui.div(
-                # Left column: 3 small charts
+                # Left column: 3 small charts (CLT on top)
                 ui.div(
+                    ui.div(
+                        ui.div("SAMPLE MEANS DISTRIBUTION (CLT)", class_="card-title"),
+                        ui.output_plot("means_plot", fill=True),
+                        class_="glass-card chart-card",
+                    ),
                     ui.div(
                         ui.div("PROPORTION OF CIs INCLUDING \u03bc", class_="card-title"),
                         ui.output_plot("prop_plot", fill=True),
@@ -195,11 +200,6 @@ app_ui = ui.page_fluid(
                     ui.div(
                         ui.div("CI WIDTH DISTRIBUTION", class_="card-title"),
                         ui.output_plot("width_plot", fill=True),
-                        class_="glass-card chart-card",
-                    ),
-                    ui.div(
-                        ui.div("SAMPLE MEANS DISTRIBUTION (CLT)", class_="card-title"),
-                        ui.output_plot("means_plot", fill=True),
                         class_="glass-card chart-card",
                     ),
                     class_="charts-col-left",

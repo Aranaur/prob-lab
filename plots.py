@@ -142,15 +142,11 @@ def draw_means_plot(sample_means: list, mu: float, sigma: float, n: int):
 
         xs = np.linspace(min(sample_means), max(sample_means), 200)
         ax.plot(xs, stats.norm.pdf(xs, mu, theo_se),
-                color="#d8b4fe", linewidth=1.2, linestyle="--",
-                label=f"N(\u03bc, \u03c3/\u221an)")
+                color="#d8b4fe", linewidth=1.2, linestyle="--")
 
         ax.axvline(mu, color="#f59e0b", linewidth=0.9, linestyle="--", zorder=5)
         ax.set_xlabel("Sample mean (\u0304x)", fontsize=9)
         ax.set_yticks([])
-        ax.legend(fontsize=7, loc="upper right",
-                  facecolor="#1e293b", edgecolor="#334155",
-                  labelcolor="#cbd5e1")
 
         # Empirical vs theoretical stats (mathtext)
         line1 = rf"$\bar{{x}}$ = {emp_mean:+.3f}   ($\mu$ = {mu:+.3f})"

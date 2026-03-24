@@ -2,6 +2,8 @@
 # Server: reactive logic, event handlers, render functions
 # =============================================================================
 
+from collections import deque
+
 import numpy as np
 from scipy import stats
 from shiny import reactive, render, ui
@@ -12,16 +14,17 @@ from plots import draw_ci_plot, draw_prop_plot, draw_width_plot, draw_means_plot
 
 def server(input, output, session):
 
-    MAX_DISPLAY = 50
+    MAX_DISPLAY = 50      # CI intervals shown on chart
+    MAX_DATA    = 10_000  # rolling window for histogram / proportion data
 
     # ── Reactive state ──
     total_drawn = reactive.value(0)
     total_covered = reactive.value(0)
-    history = reactive.value([])       # last MAX_DISPLAY CI entries
-    all_widths = reactive.value([])
-    all_means = reactive.value([])
-    prop_x = reactive.value([])
-    prop_y = reactive.value([])
+    history = reactive.value([])                          # last MAX_DISPLAY CI entries
+    all_widths: reactive.Value[deque] = reactive.value(deque(maxlen=MAX_DATA))
+    all_means:  reactive.Value[deque] = reactive.value(deque(maxlen=MAX_DATA))
+    prop_x:     reactive.Value[deque] = reactive.value(deque(maxlen=MAX_DATA))
+    prop_y:     reactive.Value[deque] = reactive.value(deque(maxlen=MAX_DATA))
     is_playing = reactive.value(False)
     speed_ms = reactive.value(0.5)     # seconds
 
@@ -210,10 +213,10 @@ def server(input, output, session):
         total_drawn.set(0)
         total_covered.set(0)
         history.set([])
-        all_widths.set([])
-        all_means.set([])
-        prop_x.set([])
-        prop_y.set([])
+        all_widths.set(deque(maxlen=MAX_DATA))
+        all_means.set(deque(maxlen=MAX_DATA))
+        prop_x.set(deque(maxlen=MAX_DATA))
+        prop_y.set(deque(maxlen=MAX_DATA))
         is_playing.set(False)
         ui.update_action_button("btn_play", label="Play")
 
@@ -286,11 +289,21 @@ def server(input, output, session):
             hist = hist[-MAX_DISPLAY:]
         history.set(hist)
 
-        all_widths.set(all_widths() + [e["width"] for e in new_entries])
-        all_means.set(all_means() + [e["mean"] for e in new_entries])
+        w = all_widths()
+        w.extend(e["width"] for e in new_entries)
+        all_widths.set(w)
 
-        prop_x.set(prop_x() + [current_drawn])
-        prop_y.set(prop_y() + [current_covered / current_drawn])
+        m = all_means()
+        m.extend(e["mean"] for e in new_entries)
+        all_means.set(m)
+
+        px = prop_x()
+        px.append(current_drawn)
+        prop_x.set(px)
+
+        py = prop_y()
+        py.append(current_covered / current_drawn)
+        prop_y.set(py)
 
     # ── Text outputs ──────────────────────────────────────────────────────
     @render.text
@@ -335,11 +348,11 @@ def server(input, output, session):
 
     @render.plot(alt="Proportion of CIs including mu")
     def prop_plot():
-        return draw_prop_plot(prop_x(), prop_y(), input.conf_level() / 100.0)
+        return draw_prop_plot(list(prop_x()), list(prop_y()), input.conf_level() / 100.0)
 
     @render.plot(alt="CI Width Distribution")
     def width_plot():
-        return draw_width_plot(all_widths())
+        return draw_width_plot(list(all_widths()))
 
     @render.plot(alt="Sample Means Distribution")
     def means_plot():
@@ -347,4 +360,4 @@ def server(input, output, session):
         if n is None or n < 2:
             n = 5
         mu, sigma = true_params()
-        return draw_means_plot(all_means(), mu, sigma, int(n))
+        return draw_means_plot(list(all_means()), mu, sigma, int(n))

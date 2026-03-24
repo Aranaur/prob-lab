@@ -61,7 +61,14 @@ app_ui = ui.page_fluid(
             ui.input_select(
                 "pop_dist",
                 ui.TagList("Population Distribution", tip("The theoretical probability distribution from which random samples are drawn.")),
-                choices={"normal": "Normal", "uniform": "Uniform", "exponential": "Exponential (Right-skewed)"},
+                choices={
+                    "normal":      "Normal",
+                    "uniform":     "Uniform",
+                    "exponential": "Exponential",
+                    "lognormal":   "Log-normal  (skewed right)",
+                    "poisson":     "Poisson  (counts)",
+                    "binomial":    "Binomial  (counts)",
+                },
                 selected="normal", width="100%",
             ),
 

@@ -60,6 +60,34 @@ def server(input, output, session):
                 ui.div(style="width: 100%;"),
                 class_="slider-row",
             )
+        elif dist == "lognormal":
+            return ui.div(
+                ui.input_numeric("lnorm_mu",
+                    ui.TagList("Log-mean (\u03bc\u2097\u2099)", tip("Mean of the underlying normal distribution on the log scale.")),
+                    value=0.0, step=0.25, width="100%"),
+                ui.input_numeric("lnorm_sigma",
+                    ui.TagList("Log-std (\u03c3\u2097\u2099)", tip("Std dev on the log scale. Larger values give stronger right skew.")),
+                    value=0.5, min=0.1, max=3.0, step=0.25, width="100%"),
+                class_="slider-row",
+            )
+        elif dist == "poisson":
+            return ui.div(
+                ui.input_numeric("pois_lam",
+                    ui.TagList("Rate (\u03bb)", tip("Expected number of events. Both mean and variance equal \u03bb.")),
+                    value=3.0, min=0.1, step=0.5, width="100%"),
+                ui.div(style="width: 100%;"),
+                class_="slider-row",
+            )
+        elif dist == "binomial":
+            return ui.div(
+                ui.input_numeric("binom_n",
+                    ui.TagList("Trials (m)", tip("Number of independent Bernoulli trials per observation.")),
+                    value=10, min=1, max=500, step=1, width="100%"),
+                ui.input_numeric("binom_p",
+                    ui.TagList("Probability (p)", tip("Probability of success on each trial (0 < p < 1).")),
+                    value=0.5, min=0.01, max=0.99, step=0.05, width="100%"),
+                class_="slider-row",
+            )
 
     # ── Interactive Formulas ───────────────────────────────────────────────
     @render.ui
@@ -82,6 +110,16 @@ def server(input, output, session):
         elif dist == "exponential":
             dist_name = "Exponential Distribution"
             param_math = r"\[ \mu = \frac{1}{\lambda}, \quad \sigma = \frac{1}{\lambda} \]"
+        elif dist == "lognormal":
+            dist_name = "Log-normal Distribution"
+            param_math = (r"\[ \mu = e^{\mu_{\ln}+\sigma_{\ln}^2/2},"
+                          r"\quad \sigma = \sqrt{(e^{\sigma_{\ln}^2}-1)\,e^{2\mu_{\ln}+\sigma_{\ln}^2}} \]")
+        elif dist == "poisson":
+            dist_name = "Poisson Distribution"
+            param_math = r"\[ \mu = \lambda, \quad \sigma = \sqrt{\lambda} \]"
+        elif dist == "binomial":
+            dist_name = "Binomial Distribution"
+            param_math = r"\[ \mu = m \cdot p, \quad \sigma = \sqrt{m \cdot p \cdot (1-p)} \]"
         else:
             dist_name = "Distribution"
             param_math = ""
@@ -156,6 +194,33 @@ def server(input, output, session):
             if lam <= 0: lam = 1e-6
             mu = 1.0 / lam
             sigma = 1.0 / lam
+        elif dist == "lognormal":
+            try:
+                lnmu = float(input.lnorm_mu() or 0.0)
+                lnsg = float(input.lnorm_sigma() or 0.5)
+                if lnsg <= 0: lnsg = 0.1
+            except Exception:
+                lnmu, lnsg = 0.0, 0.5
+            mu    = float(np.exp(lnmu + lnsg**2 / 2))
+            sigma = float(np.sqrt((np.exp(lnsg**2) - 1) * np.exp(2*lnmu + lnsg**2)))
+        elif dist == "poisson":
+            try:
+                lam = float(input.pois_lam() or 3.0)
+                if lam <= 0: lam = 0.1
+            except Exception:
+                lam = 3.0
+            mu    = lam
+            sigma = float(np.sqrt(lam))
+        elif dist == "binomial":
+            try:
+                m = int(input.binom_n() or 10)
+                p = float(input.binom_p() or 0.5)
+                m = max(1, m)
+                p = max(0.001, min(0.999, p))
+            except Exception:
+                m, p = 10, 0.5
+            mu    = float(m * p)
+            sigma = float(np.sqrt(m * p * (1 - p)))
         else:
             mu, sigma = 0.0, 1.0
 
@@ -270,6 +335,30 @@ def server(input, output, session):
                 lam = 1.0
             if lam <= 0: lam = 1e-6
             samps = np.random.exponential(1.0 / lam, size=(n, k))
+        elif dist_choice == "lognormal":
+            try:
+                lnmu = float(input.lnorm_mu() or 0.0)
+                lnsg = float(input.lnorm_sigma() or 0.5)
+                if lnsg <= 0: lnsg = 0.1
+            except Exception:
+                lnmu, lnsg = 0.0, 0.5
+            samps = np.random.lognormal(lnmu, lnsg, size=(n, k))
+        elif dist_choice == "poisson":
+            try:
+                lam = float(input.pois_lam() or 3.0)
+                if lam <= 0: lam = 0.1
+            except Exception:
+                lam = 3.0
+            samps = np.random.poisson(lam, size=(n, k)).astype(float)
+        elif dist_choice == "binomial":
+            try:
+                m = int(input.binom_n() or 10)
+                p = float(input.binom_p() or 0.5)
+                m = max(1, m)
+                p = max(0.001, min(0.999, p))
+            except Exception:
+                m, p = 10, 0.5
+            samps = np.random.binomial(m, p, size=(n, k)).astype(float)
         else:
             samps = np.random.normal(mu, sigma, size=(n, k))
 

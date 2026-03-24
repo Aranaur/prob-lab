@@ -289,19 +289,19 @@ def server(input, output, session):
             hist = hist[-MAX_DISPLAY:]
         history.set(hist)
 
-        w = all_widths()
+        w = deque(all_widths(), maxlen=MAX_DATA)
         w.extend(e["width"] for e in new_entries)
         all_widths.set(w)
 
-        m = all_means()
+        m = deque(all_means(), maxlen=MAX_DATA)
         m.extend(e["mean"] for e in new_entries)
         all_means.set(m)
 
-        px = prop_x()
+        px = deque(prop_x(), maxlen=MAX_DATA)
         px.append(current_drawn)
         prop_x.set(px)
 
-        py = prop_y()
+        py = deque(prop_y(), maxlen=MAX_DATA)
         py.append(current_covered / current_drawn)
         prop_y.set(py)
 

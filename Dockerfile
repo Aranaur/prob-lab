@@ -16,8 +16,8 @@ RUN pip install --no-cache-dir uv
 COPY --chown=user:user pyproject.toml uv.lock ./
 RUN uv sync --frozen
 
-# Копіюємо основний код додатку та папку зі стилями
-COPY --chown=user:user app.py ./
+# Копіюємо всі модулі додатку та папку зі стилями
+COPY --chown=user:user app.py ui_layout.py server.py plots.py utils.py ./
 COPY --chown=user:user css/ ./css/
 
 # Відкриваємо порт

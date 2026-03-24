@@ -65,6 +65,23 @@ app_ui = ui.page_fluid(
                 selected="normal", width="100%",
             ),
 
+            # CI method selector
+            ui.input_select(
+                "ci_method",
+                ui.TagList("CI Method", tip(
+                    "t-interval: uses sample s, assumes normal sampling distribution. "
+                    "z-interval: uses true population \u03c3 (known). "
+                    "Bootstrap: resamples from the observed data \u2014 no distributional assumptions."
+                )),
+                choices={
+                    "t":         "t-interval  (unknown \u03c3)",
+                    "z":         "z-interval  (known \u03c3)",
+                    "bootstrap": "Bootstrap   (percentile, B\u200a=\u200a500)",
+                },
+                selected="t",
+                width="100%",
+            ),
+
             # Dynamic distribution parameters
             ui.output_ui("dynamic_params"),
 

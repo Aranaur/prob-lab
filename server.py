@@ -71,7 +71,7 @@ def server(input, output, session):
             n = 5
         n = int(n)
         conf = input.conf_level() / 100.0
-        tc = float(stats.t.ppf(1 - (1 - conf) / 2, df=n - 1))
+        method = input.ci_method()
 
         if dist == "normal":
             dist_name = "Normal Distribution"
@@ -86,12 +86,30 @@ def server(input, output, session):
             dist_name = "Distribution"
             param_math = ""
 
-        ci_math = (
-            rf"\[ \text{{CI}} = \bar{{x}} \pm t_{{{n-1}, {conf*100:g}\%}}"
-            rf" \times \frac{{s}}{{\sqrt{{n}}}}"
-            rf" \implies \bar{{x}} \pm {tc:.3f}"
-            rf" \times \frac{{s}}{{\sqrt{{{n}}}}} \]"
-        )
+        if method == "t":
+            tc = float(stats.t.ppf(1 - (1 - conf) / 2, df=n - 1))
+            ci_math = (
+                rf"\[ \text{{CI}} = \bar{{x}} \pm t_{{{n-1},\,{conf*100:g}\%}}"
+                rf" \times \frac{{s}}{{\sqrt{{n}}}}"
+                rf" \implies \bar{{x}} \pm {tc:.3f}"
+                rf" \times \frac{{s}}{{\sqrt{{{n}}}}} \]"
+            )
+        elif method == "z":
+            zc = float(stats.norm.ppf(1 - (1 - conf) / 2))
+            ci_math = (
+                rf"\[ \text{{CI}} = \bar{{x}} \pm z_{{{conf*100:g}\%}}"
+                rf" \times \frac{{\sigma}}{{\sqrt{{n}}}}"
+                rf" \implies \bar{{x}} \pm {zc:.3f}"
+                rf" \times \frac{{\sigma}}{{\sqrt{{{n}}}}} \]"
+            )
+        else:  # bootstrap
+            alpha = (1 - conf) * 100
+            ci_math = (
+                rf"\[ \text{{CI}} = \Bigl["
+                rf"Q_{{{alpha/2:g}\%}}(\bar{{x}}^*),\;"
+                rf"Q_{{{100-alpha/2:g}\%}}(\bar{{x}}^*)"
+                rf"\Bigr], \quad B = 500 \]"
+            )
 
         js_trigger = ui.tags.script("if (window.MathJax) { MathJax.typesetPromise(); }")
 
@@ -208,7 +226,7 @@ def server(input, output, session):
 
     # ── Reset ─────────────────────────────────────────────────────────────
     @reactive.effect
-    @reactive.event(input.btn_reset, input.pop_dist)
+    @reactive.event(input.btn_reset, input.pop_dist, input.ci_method)
     def _reset():
         total_drawn.set(0)
         total_covered.set(0)
@@ -256,14 +274,32 @@ def server(input, output, session):
             samps = np.random.normal(mu, sigma, size=(n, k))
 
         means = np.mean(samps, axis=0)
-        stds = np.std(samps, axis=0, ddof=1)
-        ses = stds / np.sqrt(n)
+        method = input.ci_method()
 
-        tc = float(stats.t.ppf(1 - (1 - conf) / 2, df=n - 1))
+        if method == "t":
+            stds = np.std(samps, axis=0, ddof=1)
+            ses  = stds / np.sqrt(n)
+            tc   = float(stats.t.ppf(1 - (1 - conf) / 2, df=n - 1))
+            los  = means - tc * ses
+            his  = means + tc * ses
 
-        los = means - tc * ses
-        his = means + tc * ses
-        ws = his - los
+        elif method == "z":
+            # z-interval uses the TRUE population σ (known-variance case)
+            zc  = float(stats.norm.ppf(1 - (1 - conf) / 2))
+            los = means - zc * (sigma / np.sqrt(n))
+            his = means + zc * (sigma / np.sqrt(n))
+
+        else:  # bootstrap — percentile method, B=500 resamples
+            B   = 500
+            # Vectorised: idx (B, n, k) indexes into samps (n, k) per column j
+            idx        = np.random.randint(0, n, size=(B, n, k))
+            j_idx      = np.arange(k)[np.newaxis, np.newaxis, :]
+            boot_means = samps[idx, j_idx].mean(axis=1)          # (B, k)
+            alpha_pct  = (1 - conf) * 100
+            los = np.percentile(boot_means, alpha_pct / 2,       axis=0)
+            his = np.percentile(boot_means, 100 - alpha_pct / 2, axis=0)
+
+        ws  = his - los
         cvs = (mu >= los) & (mu <= his)
 
         new_entries = []
@@ -344,7 +380,7 @@ def server(input, output, session):
         if n is None or n < 2:
             n = 5
         mu, sigma = true_params()
-        return draw_ci_plot(history(), mu, sigma, int(n))
+        return draw_ci_plot(history(), mu, sigma, int(n), input.ci_method())
 
     @render.plot(alt="Proportion of CIs including mu")
     def prop_plot():

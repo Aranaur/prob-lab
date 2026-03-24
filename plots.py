@@ -11,7 +11,8 @@ import matplotlib.ticker as mticker
 from utils import DARK_BG, dark_style
 
 
-def draw_ci_plot(history_data: list[dict], mu: float, sigma: float, n: int):
+def draw_ci_plot(history_data: list[dict], mu: float, sigma: float, n: int,
+                 method: str = "t"):
     """Horizontal confidence-interval chart (last ≤50 intervals)."""
     fig, ax = plt.subplots(figsize=(9, 9), facecolor=DARK_BG)
     dark_style(ax)
@@ -22,6 +23,13 @@ def draw_ci_plot(history_data: list[dict], mu: float, sigma: float, n: int):
 
     # True-mean reference line
     ax.axvline(mu, color="#f59e0b", linewidth=1.1, linestyle="--", zorder=5)
+
+    # Method badge (top-right corner)
+    method_label = {"t": "t-interval", "z": "z-interval", "bootstrap": "Bootstrap"}.get(method, method)
+    ax.text(0.99, 0.99, method_label, transform=ax.transAxes,
+            ha="right", va="top", fontsize=7.5, color="#94a3b8",
+            bbox={"boxstyle": "round,pad=0.3", "facecolor": "#1e293b",
+                  "edgecolor": "#334155", "alpha": 0.8})
 
     if len(history_data) == 0:
         ax.text(mu, 0.5, "Press Sample or Play to begin",
@@ -88,6 +96,17 @@ def draw_width_plot(widths: list):
                 fontsize=11, transform=ax.transAxes)
         ax.set_xticks([])
         ax.set_yticks([])
+    elif np.std(widths) < 1e-10:
+        # z-interval: all widths are identical (constant CI width)
+        w0 = widths[0]
+        ax.axvline(w0, color="#818cf8", linewidth=2.0)
+        ax.set_xlim(w0 * 0.9, w0 * 1.1)
+        ax.set_xlabel("CI Width", fontsize=9)
+        ax.set_yticks([])
+        ax.text(0.56, 0.65,
+                f"Constant width\n{w0:.4f}",
+                ha="left", va="center", fontsize=9,
+                color="#a5b4fc", transform=ax.transAxes)
     else:
         ax.hist(widths, bins="auto", density=True,
                 color="#818cf8", alpha=0.5, edgecolor="#a5b4fc", linewidth=0.6)

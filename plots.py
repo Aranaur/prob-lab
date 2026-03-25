@@ -1,162 +1,242 @@
 # =============================================================================
-# Pure matplotlib plotting functions — each takes data and returns a Figure
+# Plotly chart builders — each returns a plotly.graph_objects.Figure
 # =============================================================================
 
 import numpy as np
 from scipy import stats
 from scipy.stats import gaussian_kde
-import matplotlib.pyplot as plt
-import matplotlib.ticker as mticker
+import plotly.graph_objects as go
 
-from utils import DARK_BG, dark_style
+# ── Shared dark theme layout ─────────────────────────────────────────────────
+_TRANSPARENT = "rgba(0,0,0,0)"
+_GRID = "#334155"
+_AXIS = "#94a3b8"
+_LABEL = "#cbd5e1"
+
+_DARK_LAYOUT = dict(
+    paper_bgcolor=_TRANSPARENT,
+    plot_bgcolor=_TRANSPARENT,
+    font=dict(family="Inter, sans-serif", color=_LABEL, size=11),
+    margin=dict(l=40, r=12, t=8, b=36),
+    xaxis=dict(
+        gridcolor=_GRID, gridwidth=0.3, linecolor=_GRID,
+        tickfont=dict(size=10, color=_AXIS), zeroline=False,
+    ),
+    yaxis=dict(
+        gridcolor=_GRID, gridwidth=0.3, linecolor=_GRID,
+        tickfont=dict(size=10, color=_AXIS), zeroline=False,
+    ),
+    showlegend=False,
+    dragmode=False,
+)
+
+_CONFIG = dict(displayModeBar=False, staticPlot=False)
 
 
+def _base_fig(**overrides) -> go.Figure:
+    """Create a Figure with the shared dark layout."""
+    layout = {**_DARK_LAYOUT, **overrides}
+    return go.Figure(layout=layout)
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 1.  CI chart  (horizontal intervals)
+# ═════════════════════════════════════════════════════════════════════════════
 def draw_ci_plot(history_data: list[dict], mu: float, sigma: float, n: int,
-                 method: str = "t"):
-    """Horizontal confidence-interval chart (last ≤50 intervals)."""
-    fig, ax = plt.subplots(figsize=(9, 9), facecolor=DARK_BG)
-    dark_style(ax)
+                 method: str = "t") -> go.Figure:
 
     se_theory = sigma / np.sqrt(n)
     x_lo = mu - 5 * se_theory
     x_hi = mu + 5 * se_theory
 
-    # True-mean reference line
-    ax.axvline(mu, color="#f59e0b", linewidth=1.1, linestyle="--", zorder=5)
+    method_label = {"t": "t-interval", "z": "z-interval",
+                    "bootstrap": "Bootstrap"}.get(method, method)
 
-    # Method badge (top-right corner)
-    method_label = {"t": "t-interval", "z": "z-interval", "bootstrap": "Bootstrap"}.get(method, method)
-    ax.text(0.99, 0.99, method_label, transform=ax.transAxes,
-            ha="right", va="top", fontsize=7.5, color="#94a3b8",
-            bbox={"boxstyle": "round,pad=0.3", "facecolor": "#1e293b",
-                  "edgecolor": "#334155", "alpha": 0.8})
+    fig = _base_fig(
+        xaxis=dict(**_DARK_LAYOUT["xaxis"], range=[x_lo, x_hi],
+                   title=dict(text="Sample mean", font=dict(size=11, color=_LABEL))),
+        yaxis=dict(showticklabels=False, showgrid=False, zeroline=False,
+                   linecolor=_GRID),
+    )
+
+    # True-mean reference line
+    fig.add_vline(x=mu, line_dash="dash", line_color="#f59e0b", line_width=1.2)
 
     if len(history_data) == 0:
-        ax.text(mu, 0.5, "Press Sample or Play to begin",
-                ha="center", va="center", color="#64748b", fontsize=12)
-        ax.set_xlim(x_lo, x_hi)
-        ax.set_ylim(0, 1)
-        ax.set_xlabel("Sample mean", fontsize=10)
-        ax.set_yticks([])
-        ax.grid(axis="y", visible=False)
-        fig.tight_layout()
-        plt.close(fig)
+        fig.add_annotation(
+            x=mu, y=0.5, xref="x", yref="paper",
+            text="Press Sample or Play to begin",
+            showarrow=False, font=dict(size=13, color="#64748b"),
+        )
+        fig.update_yaxes(range=[0, 1])
         return fig
 
+    # Separate covered / missed for distinct colours
     for idx, entry in enumerate(history_data):
         y = idx + 1
         color = "#94a3b8" if entry["covered"] else "#f87171"
-        ax.plot([entry["lower"], entry["upper"]], [y, y],
-                color=color, linewidth=1.0, solid_capstyle="round", zorder=2)
-        ax.plot(entry["mean"], y, "o",
-                color="#38bdf8", markersize=4, alpha=0.9, zorder=3)
+        # Interval line
+        fig.add_shape(
+            type="line", x0=entry["lower"], x1=entry["upper"], y0=y, y1=y,
+            line=dict(color=color, width=1.4), layer="above",
+        )
+        # Sample mean dot
+        fig.add_trace(go.Scatter(
+            x=[entry["mean"]], y=[y], mode="markers",
+            marker=dict(color="#38bdf8", size=5),
+            hovertemplate=(
+                f"x\u0304 = {entry['mean']:.3f}<br>"
+                f"CI = [{entry['lower']:.3f},  {entry['upper']:.3f}]<br>"
+                f"Width = {entry['width']:.3f}<br>"
+                f"{'Covers' if entry['covered'] else 'Misses'} \u03bc"
+                "<extra></extra>"
+            ),
+        ))
 
-    ax.set_xlim(x_lo, x_hi)
-    ax.set_ylim(0.5, len(history_data) + 0.5)
-    ax.set_xlabel("Sample mean", fontsize=10)
-    ax.set_yticks([])
-    ax.grid(axis="y", visible=False)
-    fig.tight_layout()
-    plt.close(fig)
+    fig.update_yaxes(range=[0.3, len(history_data) + 0.7])
+
+    # Method badge
+    fig.add_annotation(
+        xref="paper", yref="paper", x=1, y=1, xanchor="right", yanchor="top",
+        text=method_label, showarrow=False,
+        font=dict(size=10, color="#94a3b8"),
+        bgcolor="#1e293b", bordercolor="#334155", borderwidth=1, borderpad=3,
+    )
+
     return fig
 
 
-def draw_prop_plot(px: list, py: list, conf_target: float):
-    """Running proportion of CIs that include μ."""
-    fig, ax = plt.subplots(figsize=(4, 3), facecolor=DARK_BG)
-    dark_style(ax)
+# ═════════════════════════════════════════════════════════════════════════════
+# 2.  Proportion of CIs including μ
+# ═════════════════════════════════════════════════════════════════════════════
+def draw_prop_plot(px: list, py: list, conf_target: float) -> go.Figure:
+    fig = _base_fig(
+        xaxis=dict(**_DARK_LAYOUT["xaxis"],
+                   title=dict(text="Samples drawn", font=dict(size=10, color=_LABEL))),
+        yaxis=dict(**_DARK_LAYOUT["yaxis"], tickformat=".0%"),
+    )
 
-    ax.axhline(conf_target, color="#38bdf8", linewidth=0.8,
-               linestyle="--", zorder=3)
+    # Target level line
+    fig.add_hline(y=conf_target, line_dash="dash", line_color="#38bdf8",
+                  line_width=0.9)
 
     if len(px) == 0:
-        ax.set_xlim(0, 100)
-        ax.set_ylim(max(0, conf_target - 0.2), 1.0)
+        fig.update_xaxes(range=[0, 100])
+        fig.update_yaxes(range=[max(0, conf_target - 0.2), 1.0])
     else:
-        ax.plot(px, py, color="#e2e8f0", linewidth=0.9, zorder=4)
+        fig.add_trace(go.Scatter(
+            x=px, y=py, mode="lines",
+            line=dict(color="#e2e8f0", width=1.2),
+            hovertemplate="n=%{x}<br>Coverage=%{y:.1%}<extra></extra>",
+        ))
         y_min = max(0, min(min(py), conf_target) - 0.05)
         y_max = min(1, max(max(py), conf_target) + 0.05)
-        ax.set_ylim(y_min, y_max)
+        fig.update_yaxes(range=[y_min, y_max])
 
-    ax.yaxis.set_major_formatter(mticker.PercentFormatter(xmax=1, decimals=0))
-    ax.set_xlabel("Samples drawn", fontsize=9)
-    fig.tight_layout()
-    plt.close(fig)
     return fig
 
 
-def draw_width_plot(widths: list):
-    """Histogram + KDE of CI widths."""
-    fig, ax = plt.subplots(figsize=(4, 3), facecolor=DARK_BG)
-    dark_style(ax)
+# ═════════════════════════════════════════════════════════════════════════════
+# 3.  CI width distribution
+# ═════════════════════════════════════════════════════════════════════════════
+def draw_width_plot(widths: list) -> go.Figure:
+    fig = _base_fig(
+        xaxis=dict(**_DARK_LAYOUT["xaxis"],
+                   title=dict(text="CI Width", font=dict(size=10, color=_LABEL))),
+        yaxis=dict(showticklabels=False, showgrid=False, zeroline=False),
+    )
 
     if len(widths) < 3:
-        ax.text(0.5, 0.5, "Collecting data\u2026",
-                ha="center", va="center", color="#64748b",
-                fontsize=11, transform=ax.transAxes)
-        ax.set_xticks([])
-        ax.set_yticks([])
-    elif np.std(widths) < 1e-10:
-        # z-interval: all widths are identical (constant CI width)
-        w0 = widths[0]
-        ax.axvline(w0, color="#818cf8", linewidth=2.0)
-        ax.set_xlim(w0 * 0.9, w0 * 1.1)
-        ax.set_xlabel("CI Width", fontsize=9)
-        ax.set_yticks([])
-        ax.text(0.56, 0.65,
-                f"Constant width\n{w0:.4f}",
-                ha="left", va="center", fontsize=9,
-                color="#a5b4fc", transform=ax.transAxes)
-    else:
-        ax.hist(widths, bins="auto", density=True,
-                color="#818cf8", alpha=0.5, edgecolor="#a5b4fc", linewidth=0.6)
-        kde = gaussian_kde(widths)
-        xs = np.linspace(min(widths), max(widths), 200)
-        ax.plot(xs, kde(xs), color="#a5b4fc", linewidth=1.0)
-        ax.set_xlabel("CI Width", fontsize=9)
-        ax.set_yticks([])
+        fig.add_annotation(
+            xref="paper", yref="paper", x=0.5, y=0.5,
+            text="Collecting data\u2026", showarrow=False,
+            font=dict(size=13, color="#64748b"),
+        )
+        return fig
 
-    fig.tight_layout()
-    plt.close(fig)
+    if np.std(widths) < 1e-10:
+        w0 = widths[0]
+        fig.add_vline(x=w0, line_color="#818cf8", line_width=2.5)
+        fig.update_xaxes(range=[w0 * 0.9, w0 * 1.1])
+        fig.add_annotation(
+            xref="paper", yref="paper", x=0.62, y=0.7,
+            text=f"Constant width<br>{w0:.4f}",
+            showarrow=False, font=dict(size=11, color="#a5b4fc"),
+            align="left",
+        )
+        return fig
+
+    fig.add_trace(go.Histogram(
+        x=widths, histnorm="probability density",
+        marker=dict(color="rgba(129,140,248,0.5)", line=dict(color="#a5b4fc", width=0.6)),
+        hovertemplate="Width=%{x:.3f}<br>Density=%{y:.3f}<extra></extra>",
+    ))
+
+    # KDE overlay
+    kde = gaussian_kde(widths)
+    xs = np.linspace(min(widths), max(widths), 200)
+    fig.add_trace(go.Scatter(
+        x=xs, y=kde(xs), mode="lines",
+        line=dict(color="#a5b4fc", width=1.2),
+        hoverinfo="skip",
+    ))
+
     return fig
 
 
-def draw_means_plot(sample_means: list, mu: float, sigma: float, n: int):
-    """Histogram of sample means with theoretical N(μ, σ/√n) overlay."""
-    fig, ax = plt.subplots(figsize=(4, 3), facecolor=DARK_BG)
-    dark_style(ax)
+# ═════════════════════════════════════════════════════════════════════════════
+# 4.  Sample means distribution (CLT)
+# ═════════════════════════════════════════════════════════════════════════════
+def draw_means_plot(sample_means: list, mu: float, sigma: float,
+                    n: int) -> go.Figure:
+    fig = _base_fig(
+        xaxis=dict(**_DARK_LAYOUT["xaxis"],
+                   title=dict(text="Sample mean (x\u0304)", font=dict(size=10, color=_LABEL))),
+        yaxis=dict(showticklabels=False, showgrid=False, zeroline=False),
+    )
 
     if len(sample_means) < 3:
-        ax.text(0.5, 0.5, "Collecting data\u2026",
-                ha="center", va="center", color="#64748b",
-                fontsize=11, transform=ax.transAxes)
-        ax.set_xticks([])
-        ax.set_yticks([])
-    else:
-        ax.hist(sample_means, bins="auto", density=True,
-                color="#c084fc", alpha=0.5, edgecolor="#d8b4fe", linewidth=0.6)
+        fig.add_annotation(
+            xref="paper", yref="paper", x=0.5, y=0.5,
+            text="Collecting data\u2026", showarrow=False,
+            font=dict(size=13, color="#64748b"),
+        )
+        return fig
 
-        theo_se = sigma / np.sqrt(n)
-        emp_mean = float(np.mean(sample_means))
-        emp_se = float(np.std(sample_means, ddof=1))
+    fig.add_trace(go.Histogram(
+        x=sample_means, histnorm="probability density",
+        marker=dict(color="rgba(192,132,252,0.5)",
+                    line=dict(color="#d8b4fe", width=0.6)),
+        hovertemplate="x\u0304=%{x:.3f}<br>Density=%{y:.3f}<extra></extra>",
+    ))
 
-        xs = np.linspace(min(sample_means), max(sample_means), 200)
-        ax.plot(xs, stats.norm.pdf(xs, mu, theo_se),
-                color="#d8b4fe", linewidth=1.2, linestyle="--")
+    # Theoretical N(μ, σ/√n)
+    theo_se = sigma / np.sqrt(n)
+    xs = np.linspace(min(sample_means), max(sample_means), 200)
+    fig.add_trace(go.Scatter(
+        x=xs, y=stats.norm.pdf(xs, mu, theo_se),
+        mode="lines", line=dict(color="#d8b4fe", width=1.4, dash="dash"),
+        hoverinfo="skip",
+    ))
 
-        ax.axvline(mu, color="#f59e0b", linewidth=0.9, linestyle="--", zorder=5)
-        ax.set_xlabel("Sample mean (\u0304x)", fontsize=9)
-        ax.set_yticks([])
+    # True mean
+    fig.add_vline(x=mu, line_dash="dash", line_color="#f59e0b", line_width=1)
 
-        # Empirical vs theoretical stats (mathtext)
-        line1 = rf"$\bar{{x}}$ = {emp_mean:+.3f}   ($\mu$ = {mu:+.3f})"
-        line2 = rf"SE = {emp_se:.3f}   ($\sigma/\sqrt{{n}}$ = {theo_se:.3f})"
-        ax.text(0.02, 0.97, line1 + "\n" + line2,
-                transform=ax.transAxes, ha="left", va="top",
-                fontsize=7.5, color="#cbd5e1",
-                bbox={"boxstyle": "round,pad=0.35", "facecolor": "#1e293b",
-                      "edgecolor": "#475569", "alpha": 0.85})
+    # Stats annotation
+    emp_mean = float(np.mean(sample_means))
+    emp_se = float(np.std(sample_means, ddof=1))
 
-    fig.tight_layout()
-    plt.close(fig)
+    fig.add_annotation(
+        xref="paper", yref="paper", x=0.02, y=0.98,
+        xanchor="left", yanchor="top",
+        text=(
+            f"x\u0304 = {emp_mean:+.3f}  (\u03bc = {mu:+.3f})<br>"
+            f"SE = {emp_se:.3f}  (\u03c3/\u221an = {theo_se:.3f})"
+        ),
+        showarrow=False,
+        font=dict(size=10, color="#cbd5e1"),
+        bgcolor="#1e293b", bordercolor="#475569", borderwidth=1, borderpad=4,
+        align="left",
+    )
+
     return fig

@@ -11,6 +11,19 @@ from shiny import reactive, render, ui
 from utils import tip
 from plots import draw_ci_plot, draw_prop_plot, draw_width_plot, draw_means_plot
 
+# Plotly → HTML config (modebar hidden, responsive sizing)
+_PLOTLY_CONFIG = {"displayModeBar": False, "responsive": True}
+
+
+def _fig_to_ui(fig):
+    """Convert a Plotly Figure to a Shiny ui.HTML element."""
+    html = fig.to_html(
+        full_html=False,
+        include_plotlyjs=False,
+        config=_PLOTLY_CONFIG,
+    )
+    return ui.div(ui.HTML(html), class_="plotly-container")
+
 
 def server(input, output, session):
 
@@ -243,7 +256,7 @@ def server(input, output, session):
         if cur is not None and cur < 500:
             ui.update_numeric("sample_size", value=cur + 1)
 
-    # ── Speed +/- ──────────────────────────────────────────────────────────
+    # ── Speed +/- ────────────────────────────────────────────────────────
     @reactive.effect
     @reactive.event(input.speed_minus)
     def _speed_down():
@@ -380,7 +393,6 @@ def server(input, output, session):
 
         else:  # bootstrap — percentile method, B=500 resamples
             B   = 500
-            # Vectorised: idx (B, n, k) indexes into samps (n, k) per column j
             idx        = np.random.randint(0, n, size=(B, n, k))
             j_idx      = np.arange(k)[np.newaxis, np.newaxis, :]
             boot_means = samps[idx, j_idx].mean(axis=1)          # (B, k)
@@ -462,27 +474,32 @@ def server(input, output, session):
     def num_total():
         return f"{total_drawn():,}"
 
-    # ── Plot renderers (delegate to plots.py) ─────────────────────────────
-    @render.plot(alt="Confidence Intervals")
+    # ── Chart renderers (Plotly → HTML) ──────────────────────────────────
+    @render.ui
     def ci_plot():
         n = input.sample_size()
         if n is None or n < 2:
             n = 5
         mu, sigma = true_params()
-        return draw_ci_plot(history(), mu, sigma, int(n), input.ci_method())
+        fig = draw_ci_plot(history(), mu, sigma, int(n), input.ci_method())
+        return _fig_to_ui(fig)
 
-    @render.plot(alt="Proportion of CIs including mu")
+    @render.ui
     def prop_plot():
-        return draw_prop_plot(list(prop_x()), list(prop_y()), input.conf_level() / 100.0)
+        fig = draw_prop_plot(list(prop_x()), list(prop_y()),
+                             input.conf_level() / 100.0)
+        return _fig_to_ui(fig)
 
-    @render.plot(alt="CI Width Distribution")
+    @render.ui
     def width_plot():
-        return draw_width_plot(list(all_widths()))
+        fig = draw_width_plot(list(all_widths()))
+        return _fig_to_ui(fig)
 
-    @render.plot(alt="Sample Means Distribution")
+    @render.ui
     def means_plot():
         n = input.sample_size()
         if n is None or n < 2:
             n = 5
         mu, sigma = true_params()
-        return draw_means_plot(list(all_means()), mu, sigma, int(n))
+        fig = draw_means_plot(list(all_means()), mu, sigma, int(n))
+        return _fig_to_ui(fig)

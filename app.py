@@ -3,9 +3,6 @@
 # Inspired by https://rpsychologist.com/d3/ci/
 # =============================================================================
 
-import matplotlib
-matplotlib.use("Agg")
-
 from pathlib import Path
 from shiny import App
 

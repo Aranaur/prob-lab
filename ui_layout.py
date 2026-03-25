@@ -8,7 +8,8 @@ from utils import tip
 app_ui = ui.page_fluid(
     ui.tags.head(
         ui.tags.link(rel="stylesheet", href="style.css"),
-        ui.HTML('<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>')
+        ui.HTML('<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>'),
+        ui.HTML('<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>'),
     ),
 
     # JS for toggling play / pause button class
@@ -186,17 +187,17 @@ app_ui = ui.page_fluid(
                 ui.div(
                     ui.div(
                         ui.div("SAMPLE MEANS DISTRIBUTION (CLT)", class_="card-title"),
-                        ui.output_plot("means_plot", fill=True),
+                        ui.output_ui("means_plot"),
                         class_="glass-card chart-card",
                     ),
                     ui.div(
                         ui.div("PROPORTION OF CIs INCLUDING \u03bc", class_="card-title"),
-                        ui.output_plot("prop_plot", fill=True),
+                        ui.output_ui("prop_plot"),
                         class_="glass-card chart-card",
                     ),
                     ui.div(
                         ui.div("CI WIDTH DISTRIBUTION", class_="card-title"),
-                        ui.output_plot("width_plot", fill=True),
+                        ui.output_ui("width_plot"),
                         class_="glass-card chart-card",
                     ),
                     class_="charts-col-left",
@@ -205,7 +206,7 @@ app_ui = ui.page_fluid(
                 ui.div(
                     ui.div(
                         ui.div("CONFIDENCE INTERVALS", class_="card-title"),
-                        ui.output_plot("ci_plot", fill=True),
+                        ui.output_ui("ci_plot"),
                         class_="glass-card chart-card",
                     ),
                     class_="charts-col-right",

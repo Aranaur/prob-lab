@@ -411,16 +411,26 @@ h1.main-title {
   overflow: hidden;
 }
 
-/* Shiny plot output fills the card */
-.chart-card .shiny-plot-output {
+/* Shiny UI output fills the card */
+.chart-card .shiny-html-output {
   flex: 1;
   min-height: 0;
+  overflow: hidden;
 }
-.chart-card .shiny-plot-output img {
+
+/* Plotly container stretches to fill.
+   fig.to_html() produces:  <div> (wrapper, no height) → .plotly-graph-div
+   We must set height:100% on every ancestor up to .shiny-html-output. */
+.plotly-container,
+.plotly-container > div {
   width: 100%;
   height: 100%;
-  display: block;
-  object-fit: fill;
+}
+.plotly-container .js-plotly-plot,
+.plotly-container .plot-container,
+.plotly-container .plotly-graph-div {
+  width: 100% !important;
+  height: 100% !important;
 }
 
 /* ── Suppress Shiny error noise ───────────────────────────────────────────── */

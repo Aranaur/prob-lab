@@ -1,28 +1,8 @@
 # =============================================================================
-# Utility helpers: dark_style(), tip(), shared constants
+# Utility helpers: tip() tooltip and shared constants
 # =============================================================================
 
-import matplotlib.pyplot as plt
 from shiny import ui
-
-# ── Matplotlib dark theme constants ──────────────────────────────────────────
-DARK_BG = "#1e293b00"  # transparent
-GRID_COLOR = "#334155"
-AXIS_COLOR = "#94a3b8"
-LABEL_COLOR = "#cbd5e1"
-
-
-def dark_style(ax: plt.Axes):
-    """Apply consistent dark theme to a matplotlib Axes."""
-    ax.set_facecolor(DARK_BG)
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.spines["left"].set_color(GRID_COLOR)
-    ax.spines["bottom"].set_color(GRID_COLOR)
-    ax.tick_params(colors=AXIS_COLOR, labelsize=8)
-    ax.xaxis.label.set_color(LABEL_COLOR)
-    ax.yaxis.label.set_color(LABEL_COLOR)
-    ax.grid(axis="both", color=GRID_COLOR, linewidth=0.3, alpha=0.6)
 
 
 # ── Tooltip helper ───────────────────────────────────────────────────────────

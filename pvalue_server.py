@@ -19,7 +19,7 @@ def _fig_to_ui(fig):
     return ui.div(ui.HTML(html), class_="plotly-container")
 
 
-def pvalue_server(input, output, session):
+def pvalue_server(input, output, session, is_dark):
 
     MAX_DATA = 10_000
 
@@ -361,12 +361,14 @@ def pvalue_server(input, output, session):
             alpha=input.pv_alpha(),
             alternative=input.pv_alternative(),
             method=input.pv_test_method(),
+            dark=is_dark(),
         )
         return _fig_to_ui(fig)
 
     @render.ui
     def pv_hist_plot():
-        fig = draw_pvalue_hist(list(pv_all_pvalues()), alpha=input.pv_alpha())
+        fig = draw_pvalue_hist(list(pv_all_pvalues()), alpha=input.pv_alpha(),
+                               dark=is_dark())
         return _fig_to_ui(fig)
 
     @render.ui
@@ -382,5 +384,6 @@ def pvalue_server(input, output, session):
             alternative=input.pv_alternative(),
             empirical_rate=emp,
             method=input.pv_test_method(),
+            dark=is_dark(),
         )
         return _fig_to_ui(fig)

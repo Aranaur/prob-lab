@@ -4,14 +4,48 @@
   box-sizing: border-box;
 }
 
+/* ── Theme tokens ─────────────────────────────────────────────────────────── */
+:root {
+  --c-bg:          #0f172a;
+  --c-surface:     #1e293b;
+  --c-glass:       rgba(30, 41, 59, 0.85);
+  --c-glass-info:  rgba(30, 41, 59, 0.7);
+  --c-border:      #334155;
+  --c-border2:     #475569;
+  --c-text:        #e2e8f0;
+  --c-text2:       #94a3b8;
+  --c-text3:       #cbd5e1;
+  --c-muted:       #64748b;
+  --c-input:       #0f172a;
+  --c-stat-grad:   linear-gradient(145deg, #1e293b, #1a2236);
+  --c-scrollbar:   #334155;
+}
+
+body.light-mode {
+  --c-bg:          #f1f5f9;
+  --c-surface:     #ffffff;
+  --c-glass:       rgba(255, 255, 255, 0.80);
+  --c-glass-info:  rgba(239, 246, 255, 0.88);
+  --c-border:      #e2e8f0;
+  --c-border2:     #cbd5e1;
+  --c-text:        #0f172a;
+  --c-text2:       #475569;
+  --c-text3:       #334155;
+  --c-muted:       #64748b;
+  --c-input:       #ffffff;
+  --c-stat-grad:   linear-gradient(145deg, #ffffff, #eef2ff);
+  --c-scrollbar:   #94a3b8;
+}
+
 html, body {
   height: 100%;
   overflow: hidden;
   font-family: 'Inter', sans-serif;
-  background: #0f172a;
-  color: #e2e8f0;
+  background: var(--c-bg);
+  color: var(--c-text);
   margin: 0;
   padding: 0;
+  transition: background 0.25s, color 0.25s;
 }
 
 /* Shiny page root */
@@ -32,9 +66,9 @@ html, body {
   background: transparent;
 }
 .nav-pills .nav-link {
-  color: #94a3b8;
+  color: var(--c-text2);
   background: transparent;
-  border: 1px solid #334155;
+  border: 1px solid var(--c-border);
   border-radius: 7px;
   padding: 4px 18px;
   font-size: 0.82rem;
@@ -42,8 +76,8 @@ html, body {
   transition: all 0.15s;
 }
 .nav-pills .nav-link:hover {
-  color: #e2e8f0;
-  background: #1e293b;
+  color: var(--c-text);
+  background: var(--c-surface);
 }
 .nav-pills .nav-link.active {
   background: linear-gradient(135deg, #0ea5e9, #6366f1);
@@ -102,7 +136,7 @@ h1.main-title {
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: thin;
-  scrollbar-color: #334155 transparent;
+  scrollbar-color: var(--c-scrollbar) transparent;
 }
 
 /* Compact Shiny input wrappers in sidebar */
@@ -113,7 +147,7 @@ h1.main-title {
 
 .sidebar label {
   font-weight: 500;
-  color: #cbd5e1;
+  color: var(--c-text3);
   font-size: 0.82rem;
   margin-bottom: 2px;
 }
@@ -124,17 +158,17 @@ h1.main-title {
   background: linear-gradient(90deg, #38bdf8, #818cf8);
   border: none;
 }
-.sidebar .irs--shiny .irs-handle { border-color: #818cf8; background: #1e293b; }
-.sidebar .irs--shiny .irs-line   { background: #334155; }
+.sidebar .irs--shiny .irs-handle { border-color: #818cf8; background: var(--c-surface); }
+.sidebar .irs--shiny .irs-line   { background: var(--c-border); }
 .sidebar .irs--shiny .irs-single { background: #818cf8; }
 
 /* Sidebar select & number inputs */
 .sidebar select.form-select,
 .sidebar select.form-control,
 .sidebar input[type=number].form-control {
-  background-color: #1e293b;
-  color: #e2e8f0;
-  border: 1px solid #475569;
+  background-color: var(--c-surface);
+  color: var(--c-text);
+  border: 1px solid var(--c-border2);
   border-radius: 6px;
   padding: 4px 10px;
   font-size: 0.82rem;
@@ -156,7 +190,7 @@ h1.main-title {
   outline: none;
   box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
 }
-.sidebar select option { background-color: #1e293b; color: #e2e8f0; }
+.sidebar select option { background-color: var(--c-surface); color: var(--c-text); }
 
 /* dynamic_params rendered inside sidebar: stack the two inputs vertically */
 .sidebar .slider-row {
@@ -170,17 +204,17 @@ h1.main-title {
 
 /* ── Info Banner ──────────────────────────────────────────────────────────── */
 .info-banner-text {
-  background: rgba(30, 41, 59, 0.7);
+  background: var(--c-glass-info);
   backdrop-filter: blur(10px);
-  border: 1px solid #334155;
+  border: 1px solid var(--c-border);
   border-left: 3px solid #38bdf8;
   border-radius: 8px;
   padding: 8px 12px;
   font-size: 0.76rem;
-  color: #94a3b8;
+  color: var(--c-text2);
   line-height: 1.5;
 }
-.info-banner-text strong { color: #e2e8f0; }
+.info-banner-text strong { color: var(--c-text); }
 .info-banner-text em     { color: #60a5fa; font-style: italic; }
 .info-icon::before       { content: "\1F4A1"; margin-right: 4px; }
 
@@ -190,7 +224,7 @@ h1.main-title {
   vertical-align: super;
   margin-left: 3px;
   cursor: help;
-  color: #64748b;
+  color: var(--c-muted);
   font-size: 0;
   line-height: 1;
   transition: color 0.2s;
@@ -200,17 +234,18 @@ h1.main-title {
 
 /* ── Glass card (shared) ──────────────────────────────────────────────────── */
 .glass-card {
-  background: rgba(30, 41, 59, 0.85);
+  background: var(--c-glass);
   backdrop-filter: blur(12px);
-  border: 1px solid #334155;
+  border: 1px solid var(--c-border);
   border-radius: 10px;
   padding: 6px;
   overflow: hidden;
+  transition: background 0.25s, border-color 0.25s;
 }
 .glass-card .card-title {
   font-size: 0.68rem;
   font-weight: 600;
-  color: #94a3b8;
+  color: var(--c-text2);
   letter-spacing: 0.06em;
   margin: 2px 0 3px 4px;
 }
@@ -248,10 +283,6 @@ h1.main-title {
   width: 100%;
 }
 
-/* Label inside full-width ctrl-group: pushes controls to the right.
-   min-width:0 overrides the default min-width:auto so both labels
-   (regardless of text length) start from the same flex-basis and the
-   − buttons align perfectly across rows. */
 .ctrl-group-full > label {
   flex: 1;
   min-width: 0;
@@ -277,7 +308,7 @@ h1.main-title {
 .btn-row-label {
   font-size: 0.74rem;
   font-weight: 500;
-  color: #94a3b8;
+  color: var(--c-text2);
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -292,15 +323,15 @@ h1.main-title {
   display: flex;
   align-items: center;
   gap: 5px;
-  background: #1e293b;
-  border: 1px solid #334155;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
   border-radius: 8px;
   padding: 4px 8px;
 }
 .ctrl-group label {
   font-size: 0.74rem;
   font-weight: 500;
-  color: #94a3b8;
+  color: var(--c-text2);
   margin: 0 3px 0 0;
   white-space: nowrap;
 }
@@ -319,9 +350,9 @@ h1.main-title {
 .ctrl-group input[type=number] {
   width: 100% !important;
   text-align: center;
-  background: #0f172a;
-  border: 1px solid #475569;
-  color: #e2e8f0;
+  background: var(--c-bg);
+  border: 1px solid var(--c-border2);
+  color: var(--c-text);
   border-radius: 5px;
   padding: 3px;
   font-size: 0.85rem;
@@ -352,14 +383,14 @@ h1.main-title {
 .btn-pause:hover { box-shadow: 0 0 14px rgba(251,191,36,0.4); }
 
 .btn-pm {
-  background: #334155 !important;
-  color: #e2e8f0 !important;
+  background: var(--c-border) !important;
+  color: var(--c-text) !important;
   padding: 4px 9px;
   font-size: 0.95rem;
   border-radius: 5px;
-  border: 1px solid #475569 !important;
+  border: 1px solid var(--c-border2) !important;
 }
-.btn-pm:hover { background: #475569 !important; }
+.btn-pm:hover { background: var(--c-border2) !important; }
 
 .btn-reset  { background: linear-gradient(135deg, #f87171, #ef4444) !important; color: #fff !important; border: none !important; }
 .btn-reset:hover  { box-shadow: 0 0 14px rgba(248,113,113,0.4); }
@@ -367,15 +398,35 @@ h1.main-title {
 .btn-sample { background: linear-gradient(135deg, #818cf8, #6366f1) !important; color: #fff !important; border: none !important; }
 .btn-sample:hover { box-shadow: 0 0 14px rgba(129,140,248,0.4); }
 
+/* ── Theme toggle button ──────────────────────────────────────────────────── */
+.btn-theme {
+  background: transparent !important;
+  color: var(--c-text2) !important;
+  border: 1px solid var(--c-border) !important;
+  border-radius: 7px;
+  padding: 4px 12px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  margin-left: 4px;
+}
+.btn-theme:hover {
+  color: var(--c-text) !important;
+  border-color: var(--c-border2) !important;
+  background: var(--c-surface) !important;
+}
+
 /* ── Footer ───────────────────────────────────────────────────────────────── */
 .footer-links {
   text-align: center;
   font-size: 0.74rem;
-  color: #64748b;
+  color: var(--c-muted);
   margin-top: auto;
   padding-top: 4px;
 }
-.footer-links a { color: #94a3b8; text-decoration: none; margin: 0 6px; transition: color 0.2s; }
+.footer-links a { color: var(--c-text2); text-decoration: none; margin: 0 6px; transition: color 0.2s; }
 .footer-links a:hover { color: #38bdf8; }
 
 /* ── RIGHT MAIN PANEL ─────────────────────────────────────────────────────── */
@@ -397,12 +448,12 @@ h1.main-title {
 }
 .stat-card {
   flex: 1;
-  background: linear-gradient(145deg, #1e293b, #1a2236);
-  border: 1px solid #334155;
+  background: var(--c-stat-grad);
+  border: 1px solid var(--c-border);
   border-radius: 10px;
   padding: 6px 10px;
   text-align: center;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: transform 0.2s, box-shadow 0.2s, background 0.25s, border-color 0.25s;
 }
 .stat-card:hover {
   transform: translateY(-2px);
@@ -411,7 +462,7 @@ h1.main-title {
 .stat-label {
   font-size: 0.66rem;
   font-weight: 500;
-  color: #64748b;
+  color: var(--c-muted);
   letter-spacing: 0.06em;
   margin-bottom: 1px;
 }
@@ -464,9 +515,7 @@ h1.main-title {
   overflow: hidden;
 }
 
-/* Plotly container stretches to fill.
-   fig.to_html() produces:  <div> (wrapper, no height) → .plotly-graph-div
-   We must set height:100% on every ancestor up to .shiny-html-output. */
+/* Plotly container stretches to fill */
 .plotly-container,
 .plotly-container > div {
   width: 100%;
@@ -483,14 +532,87 @@ h1.main-title {
 .shiny-output-error           { visibility: hidden; }
 .shiny-output-error::before   { visibility: hidden; }
 
+/* ── Light mode depth & accents ──────────────────────────────────────────── */
+body.light-mode .glass-card {
+  box-shadow: 0 1px 3px 0 rgba(0,0,0,0.07), 0 1px 2px -1px rgba(0,0,0,0.07);
+}
+
+body.light-mode .stat-card {
+  border-top: 2px solid var(--c-border);
+  box-shadow: 0 1px 3px 0 rgba(0,0,0,0.06), 0 1px 2px -1px rgba(0,0,0,0.06);
+}
+body.light-mode .stat-card:hover {
+  box-shadow: 0 4px 12px -2px rgba(0,0,0,0.10), 0 2px 4px -2px rgba(0,0,0,0.06);
+}
+/* Colour-coded top borders for each stat card */
+body.light-mode .stat-card:nth-child(1) { border-top-color: #0ea5e9; }
+body.light-mode .stat-card:nth-child(2) { border-top-color: #10b981; }
+body.light-mode .stat-card:nth-child(3) { border-top-color: #ef4444; }
+body.light-mode .stat-card:nth-child(4) { border-top-color: #a855f7; }
+
+/* Deeper stat-value colours for white bg contrast */
+body.light-mode .stat-value.coverage { color: #0284c7; }
+body.light-mode .stat-value.included { color: #059669; }
+body.light-mode .stat-value.missed   { color: #dc2626; }
+body.light-mode .stat-value.total    { color: #9333ea; }
+
+/* Info banner: subtle blue tint */
+body.light-mode .info-banner-text {
+  background: rgba(239, 246, 255, 0.85);
+  border-color: #bfdbfe;
+  border-left: 3px solid #3b82f6;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+
+/* Formulas card: subtle violet tint */
+body.light-mode .formulas-card {
+  background: rgba(245, 243, 255, 0.75);
+  border-color: #c7d2fe;
+}
+
+/* Ctrl-group inset shadow for depth */
+body.light-mode .ctrl-group {
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+}
+
+/* Select arrow: darker chevron for light bg */
+body.light-mode .sidebar select.form-select,
+body.light-mode .sidebar select.form-control {
+  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23475569%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+}
+
+/* Sidebar inputs: subtle shadow */
+body.light-mode .sidebar select.form-select,
+body.light-mode .sidebar select.form-control,
+body.light-mode .sidebar input[type=number].form-control {
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+
+/* Nav pill hover: warmer bg */
+body.light-mode .nav-pills .nav-link:hover {
+  background: #e0e7ff;
+}
+
+/* Theme toggle button in light mode */
+body.light-mode .btn-theme {
+  background: rgba(99, 102, 241, 0.08) !important;
+  border-color: #c7d2fe !important;
+  color: #4f46e5 !important;
+}
+body.light-mode .btn-theme:hover {
+  background: rgba(99, 102, 241, 0.15) !important;
+  border-color: #a5b4fc !important;
+}
+
+/* Footer link hover stays vivid */
+body.light-mode .footer-links a:hover { color: #2563eb; }
+
 /* ── Mobile / narrow screens (≤ 900px) ────────────────────────────────────── */
 @media (max-width: 900px) {
 
-  /* Re-enable scrolling */
   html, body { overflow: auto; }
   .container-fluid { height: auto; overflow: visible; }
 
-  /* Stack sidebar above main content */
   .app-body {
     flex-direction: column;
     height: auto;
@@ -504,7 +626,6 @@ h1.main-title {
     max-height: none;
   }
 
-  /* Two-column params on wider mobile, single column on phones */
   .sidebar .slider-row {
     flex-direction: row;
     flex-wrap: wrap;
@@ -512,39 +633,32 @@ h1.main-title {
   }
   .sidebar .slider-row > div { flex: 1 1 120px; }
 
-  /* Formulas: allow horizontal scroll instead of clipping */
   .formulas-card {
     overflow-x: auto !important;
   }
 
-  /* Sample buttons: wrap naturally */
   .sidebar-btn-row { flex-wrap: wrap; }
   .btn-flex        { flex: 1 1 70px; min-width: 70px; }
   .btn-full        { min-width: 100%; }
 
-  /* Force dark background on native select (iOS override) */
   select, select.form-select, select.form-control {
-    background-color: #1e293b !important;
-    color: #e2e8f0 !important;
-    border: 1px solid #475569 !important;
+    background-color: var(--c-surface) !important;
+    color: var(--c-text) !important;
+    border: 1px solid var(--c-border2) !important;
     -webkit-appearance: none;
   }
 
-  /* Main panel: scrollable column */
   .main-panel { overflow: visible; }
 
-  /* Stats: wrap to 2×2 on phones */
   .stats-row  { flex-wrap: wrap; }
   .stat-card  { flex: 1 1 130px; }
 
-  /* Charts stack vertically */
   .charts-area {
     flex-direction: column;
     height: auto;
     overflow: visible;
   }
 
-  /* 3 small charts side by side (landscape strip) */
   .charts-col-left {
     flex-direction: row;
     flex: none;
@@ -553,7 +667,6 @@ h1.main-title {
     min-height: 180px;
   }
 
-  /* CI chart full width below */
   .charts-col-right {
     flex: none;
     width: 100%;
@@ -561,6 +674,5 @@ h1.main-title {
     min-height: 300px;
   }
 
-  /* Charts must have explicit height when container isn't flex */
   .chart-card { min-height: 0; }
 }

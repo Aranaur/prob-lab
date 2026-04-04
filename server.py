@@ -28,7 +28,16 @@ def _fig_to_ui(fig):
 
 def server(input, output, session):
 
-    pvalue_server(input, output, session)
+    # ── Theme state ────────────────────────────────────────────────────────
+    is_dark = reactive.value(True)
+
+    @reactive.effect
+    @reactive.event(input.theme_toggle)
+    def _toggle_theme():
+        # JS handles body class + button label; server just tracks state for plots
+        is_dark.set(input.theme_toggle() % 2 == 0)
+
+    pvalue_server(input, output, session, is_dark)
 
     MAX_DISPLAY = 50      # CI intervals shown on chart
     MAX_DATA    = 10_000  # rolling window for histogram / proportion data
@@ -170,13 +179,13 @@ def server(input, output, session):
         return ui.TagList(
             ui.div(
                 ui.div(dist_name + " Parameters",
-                       style="font-weight: 500; color: #94a3b8; font-size: 0.85rem; text-align: center;"),
+                       style="font-weight: 500; color: var(--c-text2); font-size: 0.85rem; text-align: center;"),
                 ui.HTML(param_math),
                 style="margin-bottom: 2px;"
             ),
             ui.div(
                 ui.div("Confidence Interval",
-                       style="font-weight: 500; color: #94a3b8; font-size: 0.85rem; text-align: center;"),
+                       style="font-weight: 500; color: var(--c-text2); font-size: 0.85rem; text-align: center;"),
                 ui.HTML(ci_math),
                 style="margin-bottom: 2px;"
             ),
@@ -484,18 +493,18 @@ def server(input, output, session):
         if n is None or n < 2:
             n = 5
         mu, sigma = true_params()
-        fig = draw_ci_plot(history(), mu, sigma, int(n), input.ci_method())
+        fig = draw_ci_plot(history(), mu, sigma, int(n), input.ci_method(), dark=is_dark())
         return _fig_to_ui(fig)
 
     @render.ui
     def prop_plot():
         fig = draw_prop_plot(list(prop_x()), list(prop_y()),
-                             input.conf_level() / 100.0)
+                             input.conf_level() / 100.0, dark=is_dark())
         return _fig_to_ui(fig)
 
     @render.ui
     def width_plot():
-        fig = draw_width_plot(list(all_widths()))
+        fig = draw_width_plot(list(all_widths()), dark=is_dark())
         return _fig_to_ui(fig)
 
     @render.ui
@@ -504,5 +513,5 @@ def server(input, output, session):
         if n is None or n < 2:
             n = 5
         mu, sigma = true_params()
-        fig = draw_means_plot(list(all_means()), mu, sigma, int(n))
+        fig = draw_means_plot(list(all_means()), mu, sigma, int(n), dark=is_dark())
         return _fig_to_ui(fig)

@@ -6,7 +6,7 @@ import numpy as np
 from scipy import stats
 import plotly.graph_objects as go
 
-from plots import _DARK_LAYOUT, _GRID, _AXIS, _LABEL, _base_fig
+from plots import _DARK_LAYOUT, _LIGHT_LAYOUT, _LABEL, _LIGHT_LABEL, _base_fig, _theme
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 1.  Null distribution with rejection region + p-value area
@@ -18,10 +18,14 @@ def draw_null_dist_plot(
     alpha: float,
     alternative: str,
     method: str = "t",
+    dark: bool = True,
 ) -> go.Figure:
+    t = _theme(dark)
+    _ax = _DARK_LAYOUT["xaxis"] if dark else _LIGHT_LAYOUT["xaxis"]
+
     is_z = method == "z"
     dist  = stats.norm if is_z else stats.t
-    d_kw  = {} if is_z else {"df": df}          # extra kwargs for t-dist calls
+    d_kw  = {} if is_z else {"df": df}
     x_lab = "z-statistic" if is_z else "t-statistic"
     s_lab = "z" if is_z else "t"
 
@@ -30,9 +34,10 @@ def draw_null_dist_plot(
     ys = dist.pdf(xs, **d_kw)
 
     fig = _base_fig(
+        dark=dark,
         xaxis=dict(
-            **_DARK_LAYOUT["xaxis"],
-            title=dict(text=x_lab, font=dict(size=10, color=_LABEL)),
+            **_ax,
+            title=dict(text=x_lab, font=dict(size=10, color=t["label"])),
             range=[-x_lim, x_lim],
         ),
         yaxis=dict(showticklabels=False, showgrid=False, zeroline=False),
@@ -70,7 +75,7 @@ def draw_null_dist_plot(
         fig.add_annotation(
             xref="paper", yref="paper", x=0.5, y=0.5,
             text="Press Sample to begin", showarrow=False,
-            font=dict(size=13, color="#64748b"),
+            font=dict(size=13, color=t["muted"]),
         )
         return fig
 
@@ -89,7 +94,6 @@ def draw_null_dist_plot(
     pv_fill  = "rgba(248,113,113,0.55)" if rejected else "rgba(56,189,248,0.40)"
     line_col = "#f87171" if rejected else "#38bdf8"
 
-    # p-value area — draw each contiguous region separately (two-sided has two tails)
     if alternative == "two-sided":
         pv_masks = [xs <= -abs(last_stat), xs >= abs(last_stat)]
     else:
@@ -104,13 +108,12 @@ def draw_null_dist_plot(
                 line=dict(color="rgba(0,0,0,0)"), hoverinfo="skip",
             ))
 
-    # Observed statistic line
     fig.add_vline(x=last_stat, line_color=line_col, line_width=2)
 
-    # Annotation — method badge + result
     p_str    = f"{pvalue:.4f}" if pvalue >= 0.0001 else "<0.0001"
     decision = "Reject H\u2080" if rejected else "Fail to reject H\u2080"
     dist_lab = "N(0,\u00a01)" if is_z else f"t({df})"
+    muted_col = t["muted"]
     fig.add_annotation(
         xref="paper", yref="paper", x=0.98, y=0.98,
         xanchor="right", yanchor="top",
@@ -118,11 +121,11 @@ def draw_null_dist_plot(
             f"{s_lab} = {last_stat:.3f}<br>"
             f"p = {p_str}<br>"
             f"<b>{decision}</b><br>"
-            f"<span style='color:#64748b'>{dist_lab}</span>"
+            f"<span style='color:{muted_col}'>{dist_lab}</span>"
         ),
         showarrow=False,
         font=dict(size=10, color=line_col),
-        bgcolor="#1e293b", bordercolor="#334155", borderwidth=1, borderpad=4,
+        bgcolor=t["annot_bg"], bordercolor=t["annot_border"], borderwidth=1, borderpad=4,
         align="right",
     )
 
@@ -132,11 +135,15 @@ def draw_null_dist_plot(
 # ─────────────────────────────────────────────────────────────────────────────
 # 2.  p-value histogram (accumulated over many tests)
 # ─────────────────────────────────────────────────────────────────────────────
-def draw_pvalue_hist(pvalues: list, alpha: float) -> go.Figure:
+def draw_pvalue_hist(pvalues: list, alpha: float, dark: bool = True) -> go.Figure:
+    t = _theme(dark)
+    _ax = _DARK_LAYOUT["xaxis"] if dark else _LIGHT_LAYOUT["xaxis"]
+
     fig = _base_fig(
+        dark=dark,
         xaxis=dict(
-            **_DARK_LAYOUT["xaxis"],
-            title=dict(text="p-value", font=dict(size=10, color=_LABEL)),
+            **_ax,
+            title=dict(text="p-value", font=dict(size=10, color=t["label"])),
             range=[0, 1],
         ),
         yaxis=dict(showticklabels=False, showgrid=False, zeroline=False),
@@ -146,7 +153,7 @@ def draw_pvalue_hist(pvalues: list, alpha: float) -> go.Figure:
         fig.add_annotation(
             xref="paper", yref="paper", x=0.5, y=0.5,
             text="Collecting data\u2026", showarrow=False,
-            font=dict(size=13, color="#64748b"),
+            font=dict(size=13, color=t["muted"]),
         )
         return fig
 
@@ -161,7 +168,6 @@ def draw_pvalue_hist(pvalues: list, alpha: float) -> go.Figure:
         hovertemplate="p \u2208 [%{x:.2f}, %{x:.2f}+0.05)<br>Density=%{y:.2f}<extra></extra>",
     ))
 
-    # α threshold line
     fig.add_vline(x=alpha, line_dash="dash", line_color="#f87171", line_width=1.2)
     fig.add_annotation(
         x=alpha, y=1, yref="paper",
@@ -171,15 +177,14 @@ def draw_pvalue_hist(pvalues: list, alpha: float) -> go.Figure:
         xanchor="left", yanchor="top", xshift=5,
     )
 
-    # Hint: uniform under H₀
     reject_frac = sum(p < alpha for p in pvalues) / len(pvalues)
     fig.add_annotation(
         xref="paper", yref="paper", x=0.98, y=0.98,
         xanchor="right", yanchor="top",
         text=f"Reject rate: {reject_frac:.1%}",
         showarrow=False,
-        font=dict(size=10, color="#cbd5e1"),
-        bgcolor="#1e293b", bordercolor="#334155", borderwidth=1, borderpad=3,
+        font=dict(size=10, color=t["annot_text"]),
+        bgcolor=t["annot_bg"], bordercolor=t["annot_border"], borderwidth=1, borderpad=3,
     )
 
     return fig
@@ -191,17 +196,20 @@ def draw_pvalue_hist(pvalues: list, alpha: float) -> go.Figure:
 def draw_power_diagram(
     mu0: float,
     mu_true: float,
-    se_val: float,        # pre-computed SE of the estimator
-    df: int,              # degrees of freedom (ignored when method="z")
+    se_val: float,
+    df: int,
     alpha: float,
     alternative: str,
     empirical_rate: float | None = None,
     method: str = "t",
+    dark: bool = True,
 ) -> go.Figure:
+    t = _theme(dark)
+    _ax = _DARK_LAYOUT["xaxis"] if dark else _LIGHT_LAYOUT["xaxis"]
+
     se     = max(se_val, 1e-9)
     effect = mu_true - mu0
 
-    # Multiplier for the critical value: t_{α,df} or z_α
     def _cv(p: float) -> float:
         if method == "z":
             return float(stats.norm.ppf(p))
@@ -214,7 +222,6 @@ def draw_power_diagram(
     y0 = stats.norm.pdf(xs, mu0, se)
     y1 = stats.norm.pdf(xs, mu_true, se)
 
-    # Critical values on the x̄ scale (using t or z multiplier)
     if alternative == "two-sided":
         cv_lo = mu0 + _cv(alpha / 2)       * se
         cv_hi = mu0 + _cv(1 - alpha / 2)   * se
@@ -229,7 +236,7 @@ def draw_power_diagram(
         alpha_masks = [xs >= cv_hi]
         power_masks = [xs >= cv_hi]
         cv_lines    = [cv_hi]
-    else:  # less
+    else:
         cv_lo       = mu0 + _cv(alpha)     * se
         theo_power  = stats.norm.cdf(cv_lo, mu_true, se)
         alpha_masks = [xs <= cv_lo]
@@ -237,27 +244,25 @@ def draw_power_diagram(
         cv_lines    = [cv_lo]
 
     fig = _base_fig(
+        dark=dark,
         xaxis=dict(
-            **_DARK_LAYOUT["xaxis"],
-            title=dict(text="Sample mean (x\u0304)", font=dict(size=10, color=_LABEL)),
+            **_ax,
+            title=dict(text="Sample mean (x\u0304)", font=dict(size=10, color=t["label"])),
         ),
         yaxis=dict(showticklabels=False, showgrid=False, zeroline=False),
     )
 
-    # H₀ curve (gray)
     fig.add_trace(go.Scatter(
         x=xs, y=y0, mode="lines",
         line=dict(color="#94a3b8", width=1.4),
         hoverinfo="skip",
     ))
-    # H₁ curve (purple)
     fig.add_trace(go.Scatter(
         x=xs, y=y1, mode="lines",
         line=dict(color="#c084fc", width=1.4),
         hoverinfo="skip",
     ))
 
-    # α shading on H₀ (red)
     for mask in alpha_masks:
         if mask.any():
             fig.add_trace(go.Scatter(
@@ -267,7 +272,6 @@ def draw_power_diagram(
                 line=dict(color="rgba(0,0,0,0)"), hoverinfo="skip",
             ))
 
-    # Power shading on H₁ (purple) — one polygon per contiguous region
     for mask in power_masks:
         if mask.any():
             fig.add_trace(go.Scatter(
@@ -277,23 +281,21 @@ def draw_power_diagram(
                 line=dict(color="rgba(0,0,0,0)"), hoverinfo="skip",
             ))
 
-    # Critical value lines
     for cv in cv_lines:
         fig.add_vline(x=cv, line_dash="dot", line_color="#f87171", line_width=0.9)
 
-    # μ₀ and μ_true reference lines
     fig.add_vline(x=mu0,    line_dash="dash", line_color="#94a3b8", line_width=1)
     if abs(effect) > 1e-9:
         fig.add_vline(x=mu_true, line_dash="dash", line_color="#c084fc", line_width=1)
 
-    # Annotation
-    delta    = effect / se if se > 0 else 0.0
-    cv_label = "t-crit" if method == "t" else "z-crit"
+    delta     = effect / se if se > 0 else 0.0
+    cv_label  = "t-crit" if method == "t" else "z-crit"
+    muted_col = t["muted"]
     lines = [
         f"\u03b4 (Cohen\u2019s d) = {delta:.3f}",
         f"Theoretical power\u200a=\u200a{theo_power:.3f}",
         f"\u03b2 (Type\u00a0II)\u200a=\u200a{1 - theo_power:.3f}",
-        f"<span style='color:#64748b'>Critical values: {cv_label}</span>",
+        f"<span style='color:{muted_col}'>Critical values: {cv_label}</span>",
     ]
     if empirical_rate is not None:
         label = "Empirical power" if abs(effect) > 1e-9 else "Type\u00a0I rate"
@@ -304,8 +306,8 @@ def draw_power_diagram(
         xanchor="left", yanchor="top",
         text="<br>".join(lines),
         showarrow=False,
-        font=dict(size=10, color="#cbd5e1"),
-        bgcolor="#1e293b", bordercolor="#475569", borderwidth=1, borderpad=4,
+        font=dict(size=10, color=t["annot_text"]),
+        bgcolor=t["annot_bg"], bordercolor=t["annot_border2"], borderwidth=1, borderpad=4,
         align="left",
     )
 

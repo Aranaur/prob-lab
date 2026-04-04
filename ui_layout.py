@@ -15,7 +15,7 @@ app_ui = ui.page_fluid(
         ui.HTML('<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>'),
     ),
 
-    # JS for toggling play / pause button class
+    # JS helpers — play/pause button class + dark/light theme toggle
     ui.tags.head(ui.tags.script("""
         Shiny.addCustomMessageHandler('togglePlayClass', function(msg) {
             var btn = document.getElementById('btn_play');
@@ -26,6 +26,14 @@ app_ui = ui.page_fluid(
                 btn.classList.remove('btn-pause');
                 btn.classList.add('btn-play');
             }
+        });
+
+        /* Theme toggle: JS handles body class + button label instantly;
+           the Shiny server reacts to the click count for plot re-rendering. */
+        $(document).on('click', '#theme_toggle', function() {
+            document.body.classList.toggle('light-mode');
+            var isDark = !document.body.classList.contains('light-mode');
+            this.textContent = isDark ? '\u2600 Light' : '\u263d Dark';
         });
     """)),
 
@@ -229,6 +237,14 @@ app_ui = ui.page_fluid(
 
         # ── Tab 2: p-value Explorer ────────────────────────────────────────────
         pvalue_panel(),
+
+        ui.nav_spacer(),
+        ui.nav_control(
+            ui.input_action_button(
+                "theme_toggle", "\u2600 Light",
+                class_="btn-ctrl btn-theme",
+            )
+        ),
 
         id="main_nav",
     ),

@@ -7,11 +7,18 @@ from scipy import stats
 from scipy.stats import gaussian_kde
 import plotly.graph_objects as go
 
-# ── Shared dark theme layout ─────────────────────────────────────────────────
+# ── Shared theme constants ────────────────────────────────────────────────────
 _TRANSPARENT = "rgba(0,0,0,0)"
-_GRID = "#334155"
-_AXIS = "#94a3b8"
+
+# Dark mode tokens
+_GRID  = "#334155"
+_AXIS  = "#94a3b8"
 _LABEL = "#cbd5e1"
+
+# Light mode tokens
+_LIGHT_GRID  = "#e2e8f0"
+_LIGHT_AXIS  = "#64748b"
+_LIGHT_LABEL = "#475569"
 
 _DARK_LAYOUT = dict(
     paper_bgcolor=_TRANSPARENT,
@@ -30,12 +37,47 @@ _DARK_LAYOUT = dict(
     dragmode=False,
 )
 
+_LIGHT_LAYOUT = dict(
+    paper_bgcolor=_TRANSPARENT,
+    plot_bgcolor=_TRANSPARENT,
+    font=dict(family="Inter, sans-serif", color=_LIGHT_LABEL, size=11),
+    margin=dict(l=40, r=12, t=8, b=36),
+    xaxis=dict(
+        gridcolor=_LIGHT_GRID, gridwidth=0.3, linecolor=_LIGHT_GRID,
+        tickfont=dict(size=10, color=_LIGHT_AXIS), zeroline=False,
+    ),
+    yaxis=dict(
+        gridcolor=_LIGHT_GRID, gridwidth=0.3, linecolor=_LIGHT_GRID,
+        tickfont=dict(size=10, color=_LIGHT_AXIS), zeroline=False,
+    ),
+    showlegend=False,
+    dragmode=False,
+)
+
 _CONFIG = dict(displayModeBar=False, staticPlot=False)
 
 
-def _base_fig(**overrides) -> go.Figure:
-    """Create a Figure with the shared dark layout."""
-    layout = {**_DARK_LAYOUT, **overrides}
+def _theme(dark: bool) -> dict:
+    """Per-draw annotation/text colour tokens."""
+    if dark:
+        return dict(
+            label=_LABEL, axis=_AXIS, grid=_GRID,
+            annot_bg="#1e293b", annot_border="#334155", annot_border2="#475569",
+            annot_text="#cbd5e1", muted="#64748b",
+            line="#e2e8f0",
+        )
+    return dict(
+        label=_LIGHT_LABEL, axis=_LIGHT_AXIS, grid=_LIGHT_GRID,
+        annot_bg="#ffffff", annot_border="#c7d2fe", annot_border2="#a5b4fc",
+        annot_text="#1e293b", muted="#94a3b8",
+        line="#334155",
+    )
+
+
+def _base_fig(dark: bool = True, **overrides) -> go.Figure:
+    """Create a Figure with the shared theme layout."""
+    base = _DARK_LAYOUT if dark else _LIGHT_LAYOUT
+    layout = {**base, **overrides}
     return go.Figure(layout=layout)
 
 
@@ -43,7 +85,10 @@ def _base_fig(**overrides) -> go.Figure:
 # 1.  CI chart  (horizontal intervals)
 # ═════════════════════════════════════════════════════════════════════════════
 def draw_ci_plot(history_data: list[dict], mu: float, sigma: float, n: int,
-                 method: str = "t") -> go.Figure:
+                 method: str = "t", dark: bool = True) -> go.Figure:
+
+    t = _theme(dark)
+    _ax = _DARK_LAYOUT["xaxis"] if dark else _LIGHT_LAYOUT["xaxis"]
 
     se_theory = sigma / np.sqrt(n)
     x_lo = mu - 5 * se_theory
@@ -53,10 +98,11 @@ def draw_ci_plot(history_data: list[dict], mu: float, sigma: float, n: int,
                     "bootstrap": "Bootstrap"}.get(method, method)
 
     fig = _base_fig(
-        xaxis=dict(**_DARK_LAYOUT["xaxis"], range=[x_lo, x_hi],
-                   title=dict(text="Sample mean", font=dict(size=11, color=_LABEL))),
+        dark=dark,
+        xaxis=dict(**_ax, range=[x_lo, x_hi],
+                   title=dict(text="Sample mean", font=dict(size=11, color=t["label"]))),
         yaxis=dict(showticklabels=False, showgrid=False, zeroline=False,
-                   linecolor=_GRID),
+                   linecolor=t["grid"]),
     )
 
     # True-mean reference line
@@ -66,21 +112,18 @@ def draw_ci_plot(history_data: list[dict], mu: float, sigma: float, n: int,
         fig.add_annotation(
             x=mu, y=0.5, xref="x", yref="paper",
             text="Press Sample or Play to begin",
-            showarrow=False, font=dict(size=13, color="#64748b"),
+            showarrow=False, font=dict(size=13, color=t["muted"]),
         )
         fig.update_yaxes(range=[0, 1])
         return fig
 
-    # Separate covered / missed for distinct colours
     for idx, entry in enumerate(history_data):
         y = idx + 1
         color = "#94a3b8" if entry["covered"] else "#f87171"
-        # Interval line
         fig.add_shape(
             type="line", x0=entry["lower"], x1=entry["upper"], y0=y, y1=y,
             line=dict(color=color, width=1.4), layer="above",
         )
-        # Sample mean dot
         fig.add_trace(go.Scatter(
             x=[entry["mean"]], y=[y], mode="markers",
             marker=dict(color="#38bdf8", size=5),
@@ -99,8 +142,8 @@ def draw_ci_plot(history_data: list[dict], mu: float, sigma: float, n: int,
     fig.add_annotation(
         xref="paper", yref="paper", x=1, y=1, xanchor="right", yanchor="top",
         text=method_label, showarrow=False,
-        font=dict(size=10, color="#94a3b8"),
-        bgcolor="#1e293b", bordercolor="#334155", borderwidth=1, borderpad=3,
+        font=dict(size=10, color=t["axis"]),
+        bgcolor=t["annot_bg"], bordercolor=t["annot_border"], borderwidth=1, borderpad=3,
     )
 
     return fig
@@ -109,16 +152,19 @@ def draw_ci_plot(history_data: list[dict], mu: float, sigma: float, n: int,
 # ═════════════════════════════════════════════════════════════════════════════
 # 2.  Proportion of CIs including μ
 # ═════════════════════════════════════════════════════════════════════════════
-def draw_prop_plot(px: list, py: list, conf_target: float) -> go.Figure:
+def draw_prop_plot(px: list, py: list, conf_target: float,
+                   dark: bool = True) -> go.Figure:
+    t = _theme(dark)
+    _ax = _DARK_LAYOUT["xaxis"] if dark else _LIGHT_LAYOUT["xaxis"]
+    _ay = _DARK_LAYOUT["yaxis"] if dark else _LIGHT_LAYOUT["yaxis"]
+
     fig = _base_fig(
-        xaxis=dict(**_DARK_LAYOUT["xaxis"],
-                   title=dict(text="Samples drawn", font=dict(size=10, color=_LABEL))),
-        yaxis=dict(**_DARK_LAYOUT["yaxis"], tickformat=".0%"),
+        dark=dark,
+        xaxis=dict(**_ax, title=dict(text="Samples drawn", font=dict(size=10, color=t["label"]))),
+        yaxis=dict(**_ay, tickformat=".0%"),
     )
 
-    # Target level line
-    fig.add_hline(y=conf_target, line_dash="dash", line_color="#38bdf8",
-                  line_width=0.9)
+    fig.add_hline(y=conf_target, line_dash="dash", line_color="#38bdf8", line_width=0.9)
 
     if len(px) == 0:
         fig.update_xaxes(range=[0, 100])
@@ -126,7 +172,7 @@ def draw_prop_plot(px: list, py: list, conf_target: float) -> go.Figure:
     else:
         fig.add_trace(go.Scatter(
             x=px, y=py, mode="lines",
-            line=dict(color="#e2e8f0", width=1.2),
+            line=dict(color=t["line"], width=1.2),
             hovertemplate="n=%{x}<br>Coverage=%{y:.1%}<extra></extra>",
         ))
         y_min = max(0, min(min(py), conf_target) - 0.05)
@@ -139,10 +185,13 @@ def draw_prop_plot(px: list, py: list, conf_target: float) -> go.Figure:
 # ═════════════════════════════════════════════════════════════════════════════
 # 3.  CI width distribution
 # ═════════════════════════════════════════════════════════════════════════════
-def draw_width_plot(widths: list) -> go.Figure:
+def draw_width_plot(widths: list, dark: bool = True) -> go.Figure:
+    t = _theme(dark)
+    _ax = _DARK_LAYOUT["xaxis"] if dark else _LIGHT_LAYOUT["xaxis"]
+
     fig = _base_fig(
-        xaxis=dict(**_DARK_LAYOUT["xaxis"],
-                   title=dict(text="CI Width", font=dict(size=10, color=_LABEL))),
+        dark=dark,
+        xaxis=dict(**_ax, title=dict(text="CI Width", font=dict(size=10, color=t["label"]))),
         yaxis=dict(showticklabels=False, showgrid=False, zeroline=False),
     )
 
@@ -150,7 +199,7 @@ def draw_width_plot(widths: list) -> go.Figure:
         fig.add_annotation(
             xref="paper", yref="paper", x=0.5, y=0.5,
             text="Collecting data\u2026", showarrow=False,
-            font=dict(size=13, color="#64748b"),
+            font=dict(size=13, color=t["muted"]),
         )
         return fig
 
@@ -172,7 +221,6 @@ def draw_width_plot(widths: list) -> go.Figure:
         hovertemplate="Width=%{x:.3f}<br>Density=%{y:.3f}<extra></extra>",
     ))
 
-    # KDE overlay
     kde = gaussian_kde(widths)
     xs = np.linspace(min(widths), max(widths), 200)
     fig.add_trace(go.Scatter(
@@ -188,10 +236,13 @@ def draw_width_plot(widths: list) -> go.Figure:
 # 4.  Sample means distribution (CLT)
 # ═════════════════════════════════════════════════════════════════════════════
 def draw_means_plot(sample_means: list, mu: float, sigma: float,
-                    n: int) -> go.Figure:
+                    n: int, dark: bool = True) -> go.Figure:
+    t = _theme(dark)
+    _ax = _DARK_LAYOUT["xaxis"] if dark else _LIGHT_LAYOUT["xaxis"]
+
     fig = _base_fig(
-        xaxis=dict(**_DARK_LAYOUT["xaxis"],
-                   title=dict(text="Sample mean (x\u0304)", font=dict(size=10, color=_LABEL))),
+        dark=dark,
+        xaxis=dict(**_ax, title=dict(text="Sample mean (x\u0304)", font=dict(size=10, color=t["label"]))),
         yaxis=dict(showticklabels=False, showgrid=False, zeroline=False),
     )
 
@@ -199,7 +250,7 @@ def draw_means_plot(sample_means: list, mu: float, sigma: float,
         fig.add_annotation(
             xref="paper", yref="paper", x=0.5, y=0.5,
             text="Collecting data\u2026", showarrow=False,
-            font=dict(size=13, color="#64748b"),
+            font=dict(size=13, color=t["muted"]),
         )
         return fig
 
@@ -210,7 +261,6 @@ def draw_means_plot(sample_means: list, mu: float, sigma: float,
         hovertemplate="x\u0304=%{x:.3f}<br>Density=%{y:.3f}<extra></extra>",
     ))
 
-    # Theoretical N(μ, σ/√n)
     theo_se = sigma / np.sqrt(n)
     xs = np.linspace(min(sample_means), max(sample_means), 200)
     fig.add_trace(go.Scatter(
@@ -219,10 +269,8 @@ def draw_means_plot(sample_means: list, mu: float, sigma: float,
         hoverinfo="skip",
     ))
 
-    # True mean
     fig.add_vline(x=mu, line_dash="dash", line_color="#f59e0b", line_width=1)
 
-    # Stats annotation
     emp_mean = float(np.mean(sample_means))
     emp_se = float(np.std(sample_means, ddof=1))
 
@@ -234,8 +282,8 @@ def draw_means_plot(sample_means: list, mu: float, sigma: float,
             f"SE = {emp_se:.3f}  (\u03c3/\u221an = {theo_se:.3f})"
         ),
         showarrow=False,
-        font=dict(size=10, color="#cbd5e1"),
-        bgcolor="#1e293b", bordercolor="#475569", borderwidth=1, borderpad=4,
+        font=dict(size=10, color=t["annot_text"]),
+        bgcolor=t["annot_bg"], bordercolor=t["annot_border2"], borderwidth=1, borderpad=4,
         align="left",
     )
 

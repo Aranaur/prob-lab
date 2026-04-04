@@ -23,6 +23,52 @@ html, body {
   overflow: hidden;
 }
 
+/* ── Nav pills (tab switcher) ─────────────────────────────────────────────── */
+.nav-pills {
+  display: flex;
+  padding: 6px 12px 2px;
+  gap: 4px;
+  flex-shrink: 0;
+  background: transparent;
+}
+.nav-pills .nav-link {
+  color: #94a3b8;
+  background: transparent;
+  border: 1px solid #334155;
+  border-radius: 7px;
+  padding: 4px 18px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  transition: all 0.15s;
+}
+.nav-pills .nav-link:hover {
+  color: #e2e8f0;
+  background: #1e293b;
+}
+.nav-pills .nav-link.active {
+  background: linear-gradient(135deg, #0ea5e9, #6366f1);
+  border-color: transparent;
+  color: #fff;
+}
+
+/* Tab content must fill remaining vertical space */
+.tab-content {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.tab-pane {
+  display: none;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+.tab-pane.active {
+  display: flex;
+}
+
 /* ── Title ────────────────────────────────────────────────────────────────── */
 h1.main-title {
   text-align: center;

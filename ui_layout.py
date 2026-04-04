@@ -4,8 +4,11 @@
 
 from shiny import ui
 from utils import tip
+from pvalue_ui import pvalue_panel
 
 app_ui = ui.page_fluid(
+
+    # ── Shared head resources ─────────────────────────────────────────────────
     ui.tags.head(
         ui.tags.link(rel="stylesheet", href="style.css"),
         ui.HTML('<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>'),
@@ -26,197 +29,207 @@ app_ui = ui.page_fluid(
         });
     """)),
 
-    # Title
-    ui.tags.h1("Interpreting Confidence Intervals", class_="main-title"),
+    # ── Navigation ────────────────────────────────────────────────────────────
+    ui.navset_pill(
 
-    # ── Two-column body ──────────────────────────────────────────────────────
-    ui.div(
+        # ── Tab 1: CI Explorer ────────────────────────────────────────────────
+        ui.nav_panel(
+            "CI Explorer",
 
-        # ── LEFT SIDEBAR: controls ─────────────────────────────────────────
-        ui.div(
-
-            # Misconception banner
             ui.div(
-                ui.tags.i(class_="info-icon"),
-                ui.tags.strong(" Common Misconception: "),
-                "A ", ui.output_text("conf_pct", inline=True),
-                " CI does NOT mean a ",
-                ui.output_text("conf_pct2", inline=True),
-                " probability the true \u03bc lies within it.",
-                ui.tags.br(),
-                ui.tags.strong("Reality: "),
-                "If we repeat sampling many times, ",
-                ui.output_text("conf_pct3", inline=True),
-                " of intervals will contain the true \u03bc.",
-                class_="info-banner-text",
-            ),
 
-            # Confidence level slider
-            ui.input_slider(
-                "conf_level",
-                ui.TagList("Confidence Level (%)", tip("The probability that the interval estimation procedure will produce an interval containing the true parameter.")),
-                min=50, max=99, value=95, step=1, width="100%",
-            ),
-
-            # Distribution selector
-            ui.input_select(
-                "pop_dist",
-                ui.TagList("Population Distribution", tip("The theoretical probability distribution from which random samples are drawn.")),
-                choices={
-                    "normal":      "Normal",
-                    "uniform":     "Uniform",
-                    "exponential": "Exponential",
-                    "lognormal":   "Log-normal  (skewed right)",
-                    "poisson":     "Poisson  (counts)",
-                    "binomial":    "Binomial  (counts)",
-                },
-                selected="normal", width="100%",
-            ),
-
-            # CI method selector
-            ui.input_select(
-                "ci_method",
-                ui.TagList("CI Method", tip(
-                    "t-interval: uses sample s, assumes normal sampling distribution. "
-                    "z-interval: uses true population \u03c3 (known). "
-                    "Bootstrap: resamples from the observed data \u2014 no distributional assumptions."
-                )),
-                choices={
-                    "t":         "t-interval  (unknown \u03c3)",
-                    "z":         "z-interval  (known \u03c3)",
-                    "bootstrap": "Bootstrap   (percentile, B\u200a=\u200a500)",
-                },
-                selected="t",
-                width="100%",
-            ),
-
-            # Dynamic distribution parameters
-            ui.output_ui("dynamic_params"),
-
-            # Theoretical formulas
-            ui.div(
-                ui.div("THEORETICAL FORMULAS", class_="card-title", style="text-align:center;margin-bottom:6px;"),
-                ui.output_ui("formulas_ui"),
-                class_="glass-card formulas-card",
-            ),
-
-            # Sampling controls
-            ui.div(
-                # Row 1: label + 3 equal sample buttons
+                # ── LEFT SIDEBAR: controls ────────────────────────────────────
                 ui.div(
-                    ui.tags.span("Sample:", class_="btn-row-label"),
-                    ui.input_action_button("btn_sample_1",   "\u00d71",   class_="btn-ctrl btn-sample btn-flex"),
-                    ui.input_action_button("btn_sample_50",  "\u00d750",  class_="btn-ctrl btn-sample btn-flex"),
-                    ui.input_action_button("btn_sample_100", "\u00d7100", class_="btn-ctrl btn-sample btn-flex"),
-                    class_="sidebar-btn-row",
-                ),
-                # Row 2: sample size
-                ui.div(
+
+                    # Misconception banner
                     ui.div(
-                        ui.tags.label("Sample size (n)"),
-                        ui.input_action_button("n_minus", "\u2212", class_="btn-ctrl btn-pm"),
-                        ui.input_numeric("sample_size", label="", value=5, min=2, max=500, step=1, width="40px"),
-                        ui.input_action_button("n_plus", "+", class_="btn-ctrl btn-pm"),
-                        class_="ctrl-group ctrl-group-full",
+                        ui.tags.i(class_="info-icon"),
+                        ui.tags.strong(" Common Misconception: "),
+                        "A ", ui.output_text("conf_pct", inline=True),
+                        " CI does NOT mean a ",
+                        ui.output_text("conf_pct2", inline=True),
+                        " probability the true \u03bc lies within it.",
+                        ui.tags.br(),
+                        ui.tags.strong("Reality: "),
+                        "If we repeat sampling many times, ",
+                        ui.output_text("conf_pct3", inline=True),
+                        " of intervals will contain the true \u03bc.",
+                        class_="info-banner-text",
                     ),
-                    class_="sidebar-btn-row",
-                ),
-                # Row 3: speed + play
-                ui.div(
+
+                    # Confidence level slider
+                    ui.input_slider(
+                        "conf_level",
+                        ui.TagList("Confidence Level (%)", tip("The probability that the interval estimation procedure will produce an interval containing the true parameter.")),
+                        min=50, max=99, value=95, step=1, width="100%",
+                    ),
+
+                    # Distribution selector
+                    ui.input_select(
+                        "pop_dist",
+                        ui.TagList("Population Distribution", tip("The theoretical probability distribution from which random samples are drawn.")),
+                        choices={
+                            "normal":      "Normal",
+                            "uniform":     "Uniform",
+                            "exponential": "Exponential",
+                            "lognormal":   "Log-normal  (skewed right)",
+                            "poisson":     "Poisson  (counts)",
+                            "binomial":    "Binomial  (counts)",
+                        },
+                        selected="normal", width="100%",
+                    ),
+
+                    # CI method selector
+                    ui.input_select(
+                        "ci_method",
+                        ui.TagList("CI Method", tip(
+                            "t-interval: uses sample s, assumes normal sampling distribution. "
+                            "z-interval: uses true population \u03c3 (known). "
+                            "Bootstrap: resamples from the observed data \u2014 no distributional assumptions."
+                        )),
+                        choices={
+                            "t":         "t-interval  (unknown \u03c3)",
+                            "z":         "z-interval  (known \u03c3)",
+                            "bootstrap": "Bootstrap   (percentile, B\u200a=\u200a500)",
+                        },
+                        selected="t",
+                        width="100%",
+                    ),
+
+                    # Dynamic distribution parameters
+                    ui.output_ui("dynamic_params"),
+
+                    # Theoretical formulas
                     ui.div(
-                        ui.tags.label("Speed"),
-                        ui.input_action_button("speed_minus", "\u2212", class_="btn-ctrl btn-pm"),
-                        ui.input_action_button("btn_play", "Play", class_="btn-ctrl btn-play btn-flex"),
-                        ui.input_action_button("speed_plus", "+", class_="btn-ctrl btn-pm"),
-                        class_="ctrl-group ctrl-group-full",
+                        ui.div("THEORETICAL FORMULAS", class_="card-title", style="text-align:center;margin-bottom:6px;"),
+                        ui.output_ui("formulas_ui"),
+                        class_="glass-card formulas-card",
                     ),
-                    class_="sidebar-btn-row",
+
+                    # Sampling controls
+                    ui.div(
+                        # Row 1: label + 3 equal sample buttons
+                        ui.div(
+                            ui.tags.span("Sample:", class_="btn-row-label"),
+                            ui.input_action_button("btn_sample_1",   "\u00d71",   class_="btn-ctrl btn-sample btn-flex"),
+                            ui.input_action_button("btn_sample_50",  "\u00d750",  class_="btn-ctrl btn-sample btn-flex"),
+                            ui.input_action_button("btn_sample_100", "\u00d7100", class_="btn-ctrl btn-sample btn-flex"),
+                            class_="sidebar-btn-row",
+                        ),
+                        # Row 2: sample size
+                        ui.div(
+                            ui.div(
+                                ui.tags.label("Sample size (n)"),
+                                ui.input_action_button("n_minus", "\u2212", class_="btn-ctrl btn-pm"),
+                                ui.input_numeric("sample_size", label="", value=5, min=2, max=500, step=1, width="40px"),
+                                ui.input_action_button("n_plus", "+", class_="btn-ctrl btn-pm"),
+                                class_="ctrl-group ctrl-group-full",
+                            ),
+                            class_="sidebar-btn-row",
+                        ),
+                        # Row 3: speed + play
+                        ui.div(
+                            ui.div(
+                                ui.tags.label("Speed"),
+                                ui.input_action_button("speed_minus", "\u2212", class_="btn-ctrl btn-pm"),
+                                ui.input_action_button("btn_play", "Play", class_="btn-ctrl btn-play btn-flex"),
+                                ui.input_action_button("speed_plus", "+", class_="btn-ctrl btn-pm"),
+                                class_="ctrl-group ctrl-group-full",
+                            ),
+                            class_="sidebar-btn-row",
+                        ),
+                        # Row 4: reset
+                        ui.div(
+                            ui.input_action_button("btn_reset", "Reset", class_="btn-ctrl btn-reset btn-full"),
+                            class_="sidebar-btn-row",
+                        ),
+                        class_="sidebar-controls",
+                    ),
+
+                    # Footer
+                    ui.div(
+                        ui.tags.a("LinkedIn", href="https://www.linkedin.com/in/ihormiroshnychenko/", target="_blank"),
+                        " \u2022 ",
+                        ui.tags.a("Telegram", href="https://t.me/araprof", target="_blank"),
+                        " \u2022 ",
+                        ui.tags.a("Website", href="https://aranaur.rbind.io/", target="_blank"),
+                        class_="footer-links",
+                    ),
+
+                    class_="sidebar",
                 ),
-                # Row 4: reset
+
+                # ── RIGHT MAIN PANEL: stats + charts ──────────────────────────
                 ui.div(
-                    ui.input_action_button("btn_reset", "Reset", class_="btn-ctrl btn-reset btn-full"),
-                    class_="sidebar-btn-row",
+
+                    # Stats row
+                    ui.div(
+                        ui.div(
+                            ui.div("CI COVERAGE ", tip("Percentage of all generated CIs that contain the true \u03bc."), class_="stat-label"),
+                            ui.div(ui.output_text("cov_rate", inline=True), class_="stat-value coverage"),
+                            class_="stat-card",
+                        ),
+                        ui.div(
+                            ui.div("\u03bc INCLUDED ", tip("Count of intervals where the true \u03bc falls inside the CI."), class_="stat-label"),
+                            ui.div(ui.output_text("num_covered", inline=True), class_="stat-value included"),
+                            class_="stat-card",
+                        ),
+                        ui.div(
+                            ui.div("\u03bc MISSED ", tip("Count of intervals where the true \u03bc falls outside the CI."), class_="stat-label"),
+                            ui.div(ui.output_text("num_missed", inline=True), class_="stat-value missed"),
+                            class_="stat-card",
+                        ),
+                        ui.div(
+                            ui.div("SAMPLES DRAWN ", tip("Total number of random samples generated so far."), class_="stat-label"),
+                            ui.div(ui.output_text("num_total", inline=True), class_="stat-value total"),
+                            class_="stat-card",
+                        ),
+                        class_="stats-row",
+                    ),
+
+                    # Charts area
+                    ui.div(
+                        # Left column: 3 small charts (CLT on top)
+                        ui.div(
+                            ui.div(
+                                ui.div("SAMPLE MEANS DISTRIBUTION (CLT)", class_="card-title"),
+                                ui.output_ui("means_plot"),
+                                class_="glass-card chart-card",
+                            ),
+                            ui.div(
+                                ui.div("PROPORTION OF CIs INCLUDING \u03bc", class_="card-title"),
+                                ui.output_ui("prop_plot"),
+                                class_="glass-card chart-card",
+                            ),
+                            ui.div(
+                                ui.div("CI WIDTH DISTRIBUTION", class_="card-title"),
+                                ui.output_ui("width_plot"),
+                                class_="glass-card chart-card",
+                            ),
+                            class_="charts-col-left",
+                        ),
+                        # Right column: main CI chart
+                        ui.div(
+                            ui.div(
+                                ui.div("CONFIDENCE INTERVALS", class_="card-title"),
+                                ui.output_ui("ci_plot"),
+                                class_="glass-card chart-card",
+                            ),
+                            class_="charts-col-right",
+                        ),
+                        class_="charts-area",
+                    ),
+
+                    class_="main-panel",
                 ),
-                class_="sidebar-controls",
+
+                class_="app-body",
             ),
+        ),  # end nav_panel CI Explorer
 
-            # Footer
-            ui.div(
-                ui.tags.a("LinkedIn", href="https://www.linkedin.com/in/ihormiroshnychenko/", target="_blank"),
-                " \u2022 ",
-                ui.tags.a("Telegram", href="https://t.me/araprof", target="_blank"),
-                " \u2022 ",
-                ui.tags.a("Website", href="https://aranaur.rbind.io/", target="_blank"),
-                class_="footer-links",
-            ),
+        # ── Tab 2: p-value Explorer ────────────────────────────────────────────
+        pvalue_panel(),
 
-            class_="sidebar",
-        ),
-
-        # ── RIGHT MAIN PANEL: stats + charts ──────────────────────────────
-        ui.div(
-
-            # Stats row
-            ui.div(
-                ui.div(
-                    ui.div("CI COVERAGE ", tip("Percentage of all generated CIs that contain the true \u03bc."), class_="stat-label"),
-                    ui.div(ui.output_text("cov_rate", inline=True), class_="stat-value coverage"),
-                    class_="stat-card",
-                ),
-                ui.div(
-                    ui.div("\u03bc INCLUDED ", tip("Count of intervals where the true \u03bc falls inside the CI."), class_="stat-label"),
-                    ui.div(ui.output_text("num_covered", inline=True), class_="stat-value included"),
-                    class_="stat-card",
-                ),
-                ui.div(
-                    ui.div("\u03bc MISSED ", tip("Count of intervals where the true \u03bc falls outside the CI."), class_="stat-label"),
-                    ui.div(ui.output_text("num_missed", inline=True), class_="stat-value missed"),
-                    class_="stat-card",
-                ),
-                ui.div(
-                    ui.div("SAMPLES DRAWN ", tip("Total number of random samples generated so far."), class_="stat-label"),
-                    ui.div(ui.output_text("num_total", inline=True), class_="stat-value total"),
-                    class_="stat-card",
-                ),
-                class_="stats-row",
-            ),
-
-            # Charts area
-            ui.div(
-                # Left column: 3 small charts (CLT on top)
-                ui.div(
-                    ui.div(
-                        ui.div("SAMPLE MEANS DISTRIBUTION (CLT)", class_="card-title"),
-                        ui.output_ui("means_plot"),
-                        class_="glass-card chart-card",
-                    ),
-                    ui.div(
-                        ui.div("PROPORTION OF CIs INCLUDING \u03bc", class_="card-title"),
-                        ui.output_ui("prop_plot"),
-                        class_="glass-card chart-card",
-                    ),
-                    ui.div(
-                        ui.div("CI WIDTH DISTRIBUTION", class_="card-title"),
-                        ui.output_ui("width_plot"),
-                        class_="glass-card chart-card",
-                    ),
-                    class_="charts-col-left",
-                ),
-                # Right column: main CI chart
-                ui.div(
-                    ui.div(
-                        ui.div("CONFIDENCE INTERVALS", class_="card-title"),
-                        ui.output_ui("ci_plot"),
-                        class_="glass-card chart-card",
-                    ),
-                    class_="charts-col-right",
-                ),
-                class_="charts-area",
-            ),
-
-            class_="main-panel",
-        ),
-
-        class_="app-body",
+        id="main_nav",
     ),
 )

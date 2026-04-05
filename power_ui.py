@@ -34,7 +34,8 @@ def power_panel() -> ui.Tag:
                     ui.TagList(
                         "Solve for",
                         tip("Fix three parameters and compute the fourth. "
-                            "The computed value is shown in the stat card above the charts."),
+                            "The input for the computed parameter is replaced "
+                            "with its calculated value."),
                     ),
                     choices={
                         "power": "Power (1\u2212\u03b2)",
@@ -74,45 +75,17 @@ def power_panel() -> ui.Tag:
                     selected="two-sided", width="100%",
                 ),
 
-                # Effect size d
-                ui.input_slider(
-                    "pw_d",
-                    ui.TagList(
-                        "Cohen\u2019s d",
-                        tip("Standardised effect size: (|\u03bc\u2081 \u2212 \u03bc\u2080|) / \u03c3. "
-                            "Small \u2248 0.2, medium \u2248 0.5, large \u2248 0.8."),
-                    ),
-                    min=0, max=2, value=0.5, step=0.01, width="100%",
-                ),
+                # Effect size d — input or computed display
+                ui.output_ui("pw_input_d"),
 
-                # Sample size
-                ui.div(
-                    ui.input_numeric(
-                        "pw_n",
-                        ui.TagList(
-                            "Sample size (n)",
-                            tip("Number of observations. For two-sample tests this is the size of group\u00a01."),
-                        ),
-                        value=30, min=2, max=5000, step=1, width="100%",
-                    ),
-                    class_="slider-row",
-                ),
+                # Sample size — input or computed display
+                ui.output_ui("pw_input_n"),
 
-                # Alpha
-                ui.input_slider(
-                    "pw_alpha",
-                    ui.TagList("\u03b1 (significance level)",
-                               tip("Probability of Type\u00a0I error (false positive).")),
-                    min=0.005, max=0.2, value=0.05, step=0.005, width="100%",
-                ),
+                # Alpha — input or computed display
+                ui.output_ui("pw_input_alpha"),
 
-                # Power
-                ui.input_slider(
-                    "pw_power",
-                    ui.TagList("Power (1\u2212\u03b2)",
-                               tip("Probability of correctly rejecting a false H\u2080.")),
-                    min=0.50, max=0.999, value=0.80, step=0.005, width="100%",
-                ),
+                # Power — input or computed display
+                ui.output_ui("pw_input_power"),
 
                 # Dynamic params (n₂ for two-sample)
                 ui.output_ui("pw_dynamic_params"),

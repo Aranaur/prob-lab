@@ -34,8 +34,13 @@ def draw_power_distributions(
     center = (mu0 + mu1) / 2
     xs = np.linspace(center - spread, center + spread, 500)
 
-    y0 = stats.norm.pdf(xs, mu0, se)
-    y1 = stats.norm.pdf(xs, mu1, se)
+    # Use t-distribution for t-tests, normal for z-test
+    if test_type == "one_z" or df is None:
+        y0 = stats.norm.pdf(xs, mu0, se)
+        y1 = stats.norm.pdf(xs, mu1, se)
+    else:
+        y0 = stats.t.pdf((xs - mu0) / se, df) / se
+        y1 = stats.t.pdf((xs - mu1) / se, df) / se
 
     # Critical value(s) on x̄ scale
     def _cv(p):

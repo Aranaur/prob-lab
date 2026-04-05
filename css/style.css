@@ -562,6 +562,75 @@ body.light-mode .stat-value.included { color: #059669; }
 body.light-mode .stat-value.missed   { color: #dc2626; }
 body.light-mode .stat-value.total    { color: #9333ea; }
 
+/* ── Computed parameter display (replaces input when solved) ──────────────── */
+.computed-param {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-left: 3px solid #818cf8;
+  border-radius: 6px;
+  padding: 6px 10px;
+  margin-bottom: 2px;
+}
+.cp-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.cp-label-text {
+  flex: 1;
+  font-weight: 500;
+  color: var(--c-text3);
+  font-size: 0.80rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cp-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: rgba(129, 140, 248, 0.15);
+  color: #818cf8;
+  border: 1px solid rgba(129, 140, 248, 0.35);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+.cp-value {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #818cf8;
+}
+.cp-d     .cp-value { color: #38bdf8; }
+.cp-n     .cp-value { color: #34d399; }
+.cp-alpha .cp-value { color: #fbbf24; }
+.cp-power .cp-value { color: #c084fc; }
+.cp-d     { border-left-color: #38bdf8; }
+.cp-n     { border-left-color: #34d399; }
+.cp-alpha { border-left-color: #fbbf24; }
+.cp-power { border-left-color: #c084fc; }
+
+body.light-mode .computed-param {
+  background: rgba(238, 242, 255, 0.7);
+  border-color: #c7d2fe;
+  border-left-color: #6366f1;
+}
+body.light-mode .cp-badge {
+  background: rgba(99, 102, 241, 0.10);
+  color: #4f46e5;
+  border-color: rgba(99, 102, 241, 0.30);
+}
+body.light-mode .cp-value { color: #4f46e5; }
+body.light-mode .cp-d     .cp-value { color: #0284c7; }
+body.light-mode .cp-n     .cp-value { color: #059669; }
+body.light-mode .cp-alpha .cp-value { color: #d97706; }
+body.light-mode .cp-power .cp-value { color: #9333ea; }
+body.light-mode .cp-d     { border-left-color: #0284c7; }
+body.light-mode .cp-n     { border-left-color: #059669; }
+body.light-mode .cp-alpha { border-left-color: #d97706; }
+body.light-mode .cp-power { border-left-color: #9333ea; }
+
 /* Power Explorer stat colours — light mode */
 body.light-mode .stat-value.pw-d     { color: #0284c7; }
 body.light-mode .stat-value.pw-n     { color: #059669; }

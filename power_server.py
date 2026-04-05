@@ -47,11 +47,15 @@ def _power_value(d: float, n: int, alpha: float, alt: str,
         return float(stats.norm.cdf(lam - z))
 
     # t-tests (one, two, paired)
+    # scipy nct.cdf can return NaN for large noncentrality params;
+    # in those cases power ≈ 1.0
     if alt == "two-sided":
         tc = stats.t.ppf(1 - alpha / 2, df)
-        return float(1 - nct_dist.cdf(tc, df, lam) + nct_dist.cdf(-tc, df, lam))
-    tc = stats.t.ppf(1 - alpha, df)
-    return float(1 - nct_dist.cdf(tc, df, lam))
+        pw = float(1 - nct_dist.cdf(tc, df, lam) + nct_dist.cdf(-tc, df, lam))
+    else:
+        tc = stats.t.ppf(1 - alpha, df)
+        pw = float(1 - nct_dist.cdf(tc, df, lam))
+    return 1.0 if np.isnan(pw) else pw
 
 
 # ── Solve-for helpers (Brent root-finding) ───────────────────────────────────
@@ -137,10 +141,87 @@ def power_server(input, output, session, is_dark):
         except Exception:
             return 0.80
 
+    # ── Computed-parameter display helper ─────────────────────────────────────
+    def _param_display(label: str, value_str: str, param: str = "") -> ui.Tag:
+        """Read-only card shown instead of an input when that param is computed."""
+        cls = f"computed-param cp-{param}" if param else "computed-param"
+        return ui.div(
+            ui.div(
+                ui.tags.span(label, class_="cp-label-text"),
+                ui.tags.span("computed", class_="cp-badge"),
+                class_="cp-label",
+            ),
+            ui.div(value_str, class_="cp-value"),
+            class_=cls,
+        )
+
+    # ── Conditional inputs — show input OR computed display ───────────────────
+    @render.ui
+    def pw_input_d():
+        if input.pw_solve_for() == "d":
+            d, *_ = pw_computed()
+            return _param_display("Cohen\u2019s d", f"{d:.3f}", "d")
+        return ui.input_slider(
+            "pw_d",
+            ui.TagList("Cohen\u2019s d",
+                       tip("Standardised effect size: (|\u03bc\u2081\u2212\u03bc\u2080|)/\u03c3. "
+                           "Small\u200a\u2248\u200a0.2, medium\u200a\u2248\u200a0.5, large\u200a\u2248\u200a0.8.")),
+            min=0, max=2, value=0.5, step=0.01, width="100%",
+        )
+
+    @render.ui
+    def pw_input_n():
+        if input.pw_solve_for() == "n":
+            _, n, _, _, n_feasible = pw_computed()
+            label = "Sample size (n)"
+            val   = f"{n:,}" if n_feasible else "\u2014 (increase d or \u03b1)"
+            return _param_display(label, val, "n")
+        return ui.div(
+            ui.input_numeric(
+                "pw_n",
+                ui.TagList("Sample size (n)",
+                           tip("Number of observations. "
+                               "For two-sample tests this is the size of group\u00a01.")),
+                value=30, min=2, max=5000, step=1, width="100%",
+            ),
+            class_="slider-row",
+        )
+
+    @render.ui
+    def pw_input_alpha():
+        if input.pw_solve_for() == "alpha":
+            _, _, alpha, *_ = pw_computed()
+            return _param_display("\u03b1 (significance level)", f"{alpha:.4f}", "alpha")
+        return ui.input_slider(
+            "pw_alpha",
+            ui.TagList("\u03b1 (significance level)",
+                       tip("Probability of Type\u00a0I error (false positive).")),
+            min=0.005, max=0.2, value=0.05, step=0.005, width="100%",
+        )
+
+    @render.ui
+    def pw_input_power():
+        if input.pw_solve_for() == "power":
+            *_, power = pw_computed()
+            return _param_display("Power (1\u2212\u03b2)", f"{power:.3f}", "power")
+        return ui.input_slider(
+            "pw_power",
+            ui.TagList("Power (1\u2212\u03b2)",
+                       tip("Probability of correctly rejecting a false H\u2080.")),
+            min=0.50, max=0.999, value=0.80, step=0.005, width="100%",
+        )
+
     # ── Dynamic params (n₂ for two-sample) ────────────────────────────────────
     @render.ui
     def pw_dynamic_params():
         if input.pw_test_type() == "two_t":
+            if input.pw_solve_for() == "n":
+                # Solving for n assumes equal groups (n₁ = n₂ = n)
+                return _param_display(
+                    "n\u2082 (group\u00a02)",
+                    "= n\u2081 (equal groups)",
+                    "n",
+                )
             return ui.div(
                 ui.input_numeric(
                     "pw_n2",
@@ -191,7 +272,7 @@ def power_server(input, output, session, is_dark):
     # ── Core computed parameters ──────────────────────────────────────────────
     @reactive.calc
     def pw_computed():
-        """Return (d, n, alpha, power) — one value is computed from the rest."""
+        """Return (d, n, alpha, power, n_feasible) — one value is computed from the rest."""
         solve = input.pw_solve_for()
         d     = _d()
         n     = _n()
@@ -199,13 +280,18 @@ def power_server(input, output, session, is_dark):
         power = _power_input()
         alt   = input.pw_alternative()
         tt    = input.pw_test_type()
-        n2    = _n2() if tt == "two_t" else None
+        # When solving for n in a two-sample test, assume equal groups (n₁=n₂=n)
+        n2 = _n2() if (tt == "two_t" and solve != "n") else None
+        n_feasible = True
 
         if solve == "power":
             power = _power_value(d, n, alpha, alt, tt, n2)
         elif solve == "n":
-            result = _solve_n(d, alpha, power, alt, tt, n2)
-            n = result if result is not None else n
+            result = _solve_n(d, alpha, power, alt, tt, n2=None)
+            if result is not None:
+                n = result
+            else:
+                n_feasible = False
         elif solve == "d":
             result = _solve_d(n, alpha, power, alt, tt, n2)
             d = result if result is not None else d
@@ -215,7 +301,7 @@ def power_server(input, output, session, is_dark):
 
         # Clamp power to [0, 1]
         power = max(0.0, min(1.0, power))
-        return d, n, alpha, power
+        return d, n, alpha, power, n_feasible
 
     # ── Stat card text outputs ────────────────────────────────────────────────
     @render.text
@@ -230,30 +316,40 @@ def power_server(input, output, session, is_dark):
 
     @render.text
     def pw_stat_alpha():
-        _, _, alpha, _ = pw_computed()
+        _, _, alpha, *_ = pw_computed()
         return f"{alpha:.3f}"
 
     @render.text
     def pw_stat_power():
-        *_, power = pw_computed()
+        _, _, _, power, _ = pw_computed()
         return f"{power:.3f}"
 
     # ── Power curve data ──────────────────────────────────────────────────────
     @reactive.calc
     def _curve_data():
-        d, n, alpha, _ = pw_computed()
+        d, n, alpha, *_ = pw_computed()
         alt = input.pw_alternative()
         tt  = input.pw_test_type()
-        n2  = _n2() if tt == "two_t" else None
+        solve = input.pw_solve_for()
+        # When solving for n, equal groups (n2=None) — matches pw_computed logic
+        n2 = _n2() if (tt == "two_t" and solve != "n") else None
 
         if abs(d) < 1e-9:
             return np.array([]), np.array([])
 
-        max_n = max(300, n * 3)
-        ns = np.unique(np.concatenate([
-            np.arange(2, min(60, max_n + 1)),
-            np.linspace(60, max_n, 150).astype(int),
-        ]))
+        # Scale axis: show enough beyond operating point but cap dense range
+        max_n = max(300, int(n * 1.5))
+        # Adaptive grid: dense near small n, sparser at large n
+        if max_n <= 600:
+            ns = np.unique(np.concatenate([
+                np.arange(2, min(60, max_n + 1)),
+                np.linspace(60, max_n, 150).astype(int),
+            ]))
+        else:
+            ns = np.unique(np.concatenate([
+                np.arange(2, 60),
+                np.linspace(60, max_n, 200).astype(int),
+            ]))
 
         # Vectorised for z-test
         if tt == "one_z":
@@ -274,9 +370,10 @@ def power_server(input, output, session, is_dark):
     # ── Chart renderers ───────────────────────────────────────────────────────
     @render.ui
     def pw_dist_plot():
-        d, n, alpha, power = pw_computed()
-        tt  = input.pw_test_type()
-        n2  = _n2() if tt == "two_t" else None
+        d, n, alpha, power, _ = pw_computed()
+        tt    = input.pw_test_type()
+        solve = input.pw_solve_for()
+        n2    = _n2() if (tt == "two_t" and solve != "n") else None
         se, df = _se_df(tt, n, n2)
 
         fig = draw_power_distributions(
@@ -288,7 +385,7 @@ def power_server(input, output, session, is_dark):
 
     @render.ui
     def pw_curve_plot():
-        d, n, alpha, power = pw_computed()
+        d, n, alpha, power, _ = pw_computed()
         ns, powers = _curve_data()
 
         fig = draw_power_curve(

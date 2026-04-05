@@ -75,16 +75,19 @@ def power_panel() -> ui.Tag:
                     selected="two-sided", width="100%",
                 ),
 
-                # Effect size d — input or computed display
+                # Computed result — shown right after "Solve for"
+                ui.output_ui("pw_computed_result"),
+
+                # Effect size d — input or hidden when computed
                 ui.output_ui("pw_input_d"),
 
-                # Sample size — input or computed display
+                # Sample size — input or hidden when computed
                 ui.output_ui("pw_input_n"),
 
-                # Alpha — input or computed display
+                # Alpha — input or hidden when computed
                 ui.output_ui("pw_input_alpha"),
 
-                # Power — input or computed display
+                # Power — input or hidden when computed
                 ui.output_ui("pw_input_power"),
 
                 # Dynamic params (n₂ for two-sample)

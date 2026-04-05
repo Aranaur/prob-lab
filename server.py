@@ -49,11 +49,29 @@ def server(input, output, session):
     total_covered = reactive.value(0)
     history = reactive.value([])                          # last MAX_DISPLAY CI entries
     all_widths: reactive.Value[deque] = reactive.value(deque(maxlen=MAX_DATA))
-    all_means:  reactive.Value[deque] = reactive.value(deque(maxlen=MAX_DATA))
+    all_estimates: reactive.Value[deque] = reactive.value(deque(maxlen=MAX_DATA))
     prop_x:     reactive.Value[deque] = reactive.value(deque(maxlen=MAX_DATA))
     prop_y:     reactive.Value[deque] = reactive.value(deque(maxlen=MAX_DATA))
     is_playing = reactive.value(False)
     speed_ms = reactive.value(0.5)     # seconds
+
+    # ── Force bootstrap when statistic is not mean ──────────────────────────
+    @reactive.effect
+    @reactive.event(input.ci_statistic)
+    def _sync_ci_method():
+        stat = input.ci_statistic()
+        if stat in ("median", "variance"):
+            ui.update_select("ci_method",
+                choices={"bootstrap": "Bootstrap   (percentile, B\u200a=\u200a500)"},
+                selected="bootstrap")
+        else:
+            ui.update_select("ci_method",
+                choices={
+                    "t":         "t-interval  (unknown \u03c3)",
+                    "z":         "z-interval  (known \u03c3)",
+                    "bootstrap": "Bootstrap   (percentile, B\u200a=\u200a500)",
+                },
+                selected="t")
 
     # ── Dynamic Parameters UI ──────────────────────────────────────────────
     @render.ui
@@ -116,87 +134,10 @@ def server(input, output, session):
                 class_="slider-row",
             )
 
-    # ── Interactive Formulas ───────────────────────────────────────────────
-    @render.ui
-    def formulas_ui():
-        dist = input.pop_dist()
-
-        n = input.sample_size()
-        if n is None or n < 2:
-            n = 5
-        n = int(n)
-        conf = input.conf_level() / 100.0
-        method = input.ci_method()
-
-        if dist == "normal":
-            dist_name = "Normal Distribution"
-            param_math = r"\[ \mu = \text{Mean}, \quad \sigma = \text{SD} \]"
-        elif dist == "uniform":
-            dist_name = "Uniform Distribution"
-            param_math = r"\[ \mu = \frac{a+b}{2}, \quad \sigma = \frac{b-a}{\sqrt{12}} \]"
-        elif dist == "exponential":
-            dist_name = "Exponential Distribution"
-            param_math = r"\[ \mu = \frac{1}{\lambda}, \quad \sigma = \frac{1}{\lambda} \]"
-        elif dist == "lognormal":
-            dist_name = "Log-normal Distribution"
-            param_math = (r"\[ \mu = e^{\mu_{\ln}+\sigma_{\ln}^2/2},"
-                          r"\quad \sigma = \sqrt{(e^{\sigma_{\ln}^2}-1)\,e^{2\mu_{\ln}+\sigma_{\ln}^2}} \]")
-        elif dist == "poisson":
-            dist_name = "Poisson Distribution"
-            param_math = r"\[ \mu = \lambda, \quad \sigma = \sqrt{\lambda} \]"
-        elif dist == "binomial":
-            dist_name = "Binomial Distribution"
-            param_math = r"\[ \mu = m \cdot p, \quad \sigma = \sqrt{m \cdot p \cdot (1-p)} \]"
-        else:
-            dist_name = "Distribution"
-            param_math = ""
-
-        if method == "t":
-            tc = float(stats.t.ppf(1 - (1 - conf) / 2, df=n - 1))
-            ci_math = (
-                rf"\[ \text{{CI}} = \bar{{x}} \pm t_{{{n-1},\,{conf*100:g}\%}}"
-                rf" \times \frac{{s}}{{\sqrt{{n}}}}"
-                rf" \implies \bar{{x}} \pm {tc:.3f}"
-                rf" \times \frac{{s}}{{\sqrt{{{n}}}}} \]"
-            )
-        elif method == "z":
-            zc = float(stats.norm.ppf(1 - (1 - conf) / 2))
-            ci_math = (
-                rf"\[ \text{{CI}} = \bar{{x}} \pm z_{{{conf*100:g}\%}}"
-                rf" \times \frac{{\sigma}}{{\sqrt{{n}}}}"
-                rf" \implies \bar{{x}} \pm {zc:.3f}"
-                rf" \times \frac{{\sigma}}{{\sqrt{{{n}}}}} \]"
-            )
-        else:  # bootstrap
-            alpha = (1 - conf) * 100
-            ci_math = (
-                rf"\[ \text{{CI}} = \Bigl["
-                rf"Q_{{{alpha/2:g}\%}}(\bar{{x}}^*),\;"
-                rf"Q_{{{100-alpha/2:g}\%}}(\bar{{x}}^*)"
-                rf"\Bigr], \quad B = 500 \]"
-            )
-
-        js_trigger = ui.tags.script("if (window.MathJax) { MathJax.typesetPromise(); }")
-
-        return ui.TagList(
-            ui.div(
-                ui.div(dist_name + " Parameters",
-                       style="font-weight: 500; color: var(--c-text2); font-size: 0.85rem; text-align: center;"),
-                ui.HTML(param_math),
-                style="margin-bottom: 2px;"
-            ),
-            ui.div(
-                ui.div("Confidence Interval",
-                       style="font-weight: 500; color: var(--c-text2); font-size: 0.85rem; text-align: center;"),
-                ui.HTML(ci_math),
-                style="margin-bottom: 2px;"
-            ),
-            js_trigger
-        )
-
     # ── True Parameters ────────────────────────────────────────────────────
     @reactive.calc
     def true_params():
+        """Return (mu, sigma, true_median, true_variance) for the current distribution."""
         dist = input.pop_dist()
         if dist == "normal":
             try:
@@ -204,6 +145,8 @@ def server(input, output, session):
                 sigma = float(input.pop_sd() or 1.0)
             except Exception:
                 mu, sigma = 0.0, 1.0
+            median = mu
+            variance = sigma ** 2
         elif dist == "uniform":
             try:
                 a = float(input.pop_min() or 0.0)
@@ -213,6 +156,8 @@ def server(input, output, session):
                 a, b = 0.0, 1.0
             mu = (a + b) / 2.0
             sigma = (b - a) / np.sqrt(12)
+            median = mu
+            variance = sigma ** 2
         elif dist == "exponential":
             try:
                 lam = float(input.pop_lambda() or 1.0)
@@ -221,6 +166,8 @@ def server(input, output, session):
             if lam <= 0: lam = 1e-6
             mu = 1.0 / lam
             sigma = 1.0 / lam
+            median = float(np.log(2) / lam)
+            variance = sigma ** 2
         elif dist == "lognormal":
             try:
                 lnmu = float(input.lnorm_mu() or 0.0)
@@ -230,6 +177,8 @@ def server(input, output, session):
                 lnmu, lnsg = 0.0, 0.5
             mu    = float(np.exp(lnmu + lnsg**2 / 2))
             sigma = float(np.sqrt((np.exp(lnsg**2) - 1) * np.exp(2*lnmu + lnsg**2)))
+            median = float(np.exp(lnmu))
+            variance = sigma ** 2
         elif dist == "poisson":
             try:
                 lam = float(input.pois_lam() or 3.0)
@@ -238,6 +187,8 @@ def server(input, output, session):
                 lam = 3.0
             mu    = lam
             sigma = float(np.sqrt(lam))
+            median = float(stats.poisson.median(lam))
+            variance = lam
         elif dist == "binomial":
             try:
                 m = int(input.binom_n() or 10)
@@ -248,12 +199,27 @@ def server(input, output, session):
                 m, p = 10, 0.5
             mu    = float(m * p)
             sigma = float(np.sqrt(m * p * (1 - p)))
+            median = float(stats.binom.median(m, p))
+            variance = sigma ** 2
         else:
             mu, sigma = 0.0, 1.0
+            median = mu
+            variance = sigma ** 2
 
         if sigma <= 0:
             sigma = 1e-6
-        return mu, sigma
+        return mu, sigma, median, variance
+
+    @reactive.calc
+    def true_value():
+        """The true population value of the chosen statistic."""
+        mu, sigma, median, variance = true_params()
+        stat = input.ci_statistic()
+        if stat == "median":
+            return median
+        if stat == "variance":
+            return variance
+        return mu
 
     # ── Sample size +/- ────────────────────────────────────────────────────
     @reactive.effect
@@ -318,13 +284,13 @@ def server(input, output, session):
 
     # ── Reset ─────────────────────────────────────────────────────────────
     @reactive.effect
-    @reactive.event(input.btn_reset, input.pop_dist, input.ci_method)
+    @reactive.event(input.btn_reset, input.pop_dist, input.ci_method, input.ci_statistic)
     def _reset():
         total_drawn.set(0)
         total_covered.set(0)
         history.set([])
         all_widths.set(deque(maxlen=MAX_DATA))
-        all_means.set(deque(maxlen=MAX_DATA))
+        all_estimates.set(deque(maxlen=MAX_DATA))
         prop_x.set(deque(maxlen=MAX_DATA))
         prop_y.set(deque(maxlen=MAX_DATA))
         is_playing.set(False)
@@ -341,7 +307,7 @@ def server(input, output, session):
         current_drawn = total_drawn()
         current_covered = total_covered()
 
-        mu, sigma = true_params()
+        mu, sigma, *_ = true_params()
 
         # Vectorized data generation: shape (n, k)
         dist_choice = input.pop_dist()
@@ -389,39 +355,58 @@ def server(input, output, session):
         else:
             samps = np.random.normal(mu, sigma, size=(n, k))
 
-        means = np.mean(samps, axis=0)
+        stat_type = input.ci_statistic()
+
+        # Point estimates for the chosen statistic
+        if stat_type == "mean":
+            estimates = np.mean(samps, axis=0)
+        elif stat_type == "median":
+            estimates = np.median(samps, axis=0)
+        elif stat_type == "variance":
+            estimates = np.var(samps, axis=0, ddof=1)
+        else:
+            estimates = np.mean(samps, axis=0)
+
         method = input.ci_method()
 
-        if method == "t":
+        if method == "t" and stat_type == "mean":
             stds = np.std(samps, axis=0, ddof=1)
             ses  = stds / np.sqrt(n)
             tc   = float(stats.t.ppf(1 - (1 - conf) / 2, df=n - 1))
-            los  = means - tc * ses
-            his  = means + tc * ses
+            los  = estimates - tc * ses
+            his  = estimates + tc * ses
 
-        elif method == "z":
-            # z-interval uses the TRUE population σ (known-variance case)
+        elif method == "z" and stat_type == "mean":
             zc  = float(stats.norm.ppf(1 - (1 - conf) / 2))
-            los = means - zc * (sigma / np.sqrt(n))
-            his = means + zc * (sigma / np.sqrt(n))
+            los = estimates - zc * (sigma / np.sqrt(n))
+            his = estimates + zc * (sigma / np.sqrt(n))
 
         else:  # bootstrap — percentile method, B=500 resamples
             B   = 500
-            idx        = np.random.randint(0, n, size=(B, n, k))
-            j_idx      = np.arange(k)[np.newaxis, np.newaxis, :]
-            boot_means = samps[idx, j_idx].mean(axis=1)          # (B, k)
-            alpha_pct  = (1 - conf) * 100
-            los = np.percentile(boot_means, alpha_pct / 2,       axis=0)
-            his = np.percentile(boot_means, 100 - alpha_pct / 2, axis=0)
+            idx   = np.random.randint(0, n, size=(B, n, k))
+            j_idx = np.arange(k)[np.newaxis, np.newaxis, :]
+            boot_samps = samps[idx, j_idx]                 # (B, n, k)
+            if stat_type == "mean":
+                boot_stats = boot_samps.mean(axis=1)
+            elif stat_type == "median":
+                boot_stats = np.median(boot_samps, axis=1)
+            elif stat_type == "variance":
+                boot_stats = np.var(boot_samps, axis=1, ddof=1)
+            else:
+                boot_stats = boot_samps.mean(axis=1)
+            alpha_pct = (1 - conf) * 100
+            los = np.percentile(boot_stats, alpha_pct / 2,       axis=0)
+            his = np.percentile(boot_stats, 100 - alpha_pct / 2, axis=0)
 
         ws  = his - los
-        cvs = (mu >= los) & (mu <= his)
+        tv  = true_value()
+        cvs = (tv >= los) & (tv <= his)
 
         new_entries = []
         for i in range(k):
             new_entries.append(dict(
                 id=current_drawn + i + 1,
-                mean=float(means[i]),
+                estimate=float(estimates[i]),
                 lower=float(los[i]),
                 upper=float(his[i]),
                 covered=bool(cvs[i]),
@@ -444,9 +429,9 @@ def server(input, output, session):
         w.extend(e["width"] for e in new_entries)
         all_widths.set(w)
 
-        m = deque(all_means(), maxlen=MAX_DATA)
-        m.extend(e["mean"] for e in new_entries)
-        all_means.set(m)
+        m = deque(all_estimates(), maxlen=MAX_DATA)
+        m.extend(e["estimate"] for e in new_entries)
+        all_estimates.set(m)
 
         px = deque(prop_x(), maxlen=MAX_DATA)
         px.append(current_drawn)
@@ -488,14 +473,37 @@ def server(input, output, session):
     def num_total():
         return f"{total_drawn():,}"
 
+    # ── Dynamic labels ───────────────────────────────────────────────────
+    @render.text
+    def stat_label_inc():
+        s = input.ci_statistic()
+        return {"mean": "\u03bc INCLUDED", "median": "MEDIAN INCLUDED",
+                "variance": "\u03c3\u00b2 INCLUDED"}.get(s, "\u03bc INCLUDED")
+
+    @render.text
+    def stat_label_miss():
+        s = input.ci_statistic()
+        return {"mean": "\u03bc MISSED", "median": "MEDIAN MISSED",
+                "variance": "\u03c3\u00b2 MISSED"}.get(s, "\u03bc MISSED")
+
+    @render.text
+    def stat_plot_title():
+        s = input.ci_statistic()
+        return {"mean": "SAMPLE MEANS DISTRIBUTION (CLT)",
+                "median": "SAMPLE MEDIANS DISTRIBUTION",
+                "variance": "SAMPLE VARIANCES DISTRIBUTION"}.get(s, "SAMPLE STATISTICS DISTRIBUTION")
+
     # ── Chart renderers (Plotly → HTML) ──────────────────────────────────
     @render.ui
     def ci_plot():
         n = input.sample_size()
         if n is None or n < 2:
             n = 5
-        mu, sigma = true_params()
-        fig = draw_ci_plot(history(), mu, sigma, int(n), input.ci_method(), dark=is_dark())
+        mu, sigma, *_ = true_params()
+        tv = true_value()
+        stat = input.ci_statistic()
+        fig = draw_ci_plot(history(), tv, sigma, int(n), input.ci_method(),
+                           statistic=stat, dark=is_dark())
         return _fig_to_ui(fig)
 
     @render.ui
@@ -514,6 +522,9 @@ def server(input, output, session):
         n = input.sample_size()
         if n is None or n < 2:
             n = 5
-        mu, sigma = true_params()
-        fig = draw_means_plot(list(all_means()), mu, sigma, int(n), dark=is_dark())
+        mu, sigma, *_ = true_params()
+        tv = true_value()
+        stat = input.ci_statistic()
+        fig = draw_means_plot(list(all_estimates()), tv, sigma, int(n),
+                              statistic=stat, dark=is_dark())
         return _fig_to_ui(fig)

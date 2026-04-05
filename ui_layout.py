@@ -57,12 +57,12 @@ app_ui = ui.page_fluid(
                         "A ", ui.output_text("conf_pct", inline=True),
                         " CI does NOT mean a ",
                         ui.output_text("conf_pct2", inline=True),
-                        " probability the true \u03bc lies within it.",
+                        " probability the true parameter lies within it.",
                         ui.tags.br(),
                         ui.tags.strong("Reality: "),
                         "If we repeat sampling many times, ",
                         ui.output_text("conf_pct3", inline=True),
-                        " of intervals will contain the true \u03bc.",
+                        " of intervals will contain the true parameter.",
                         class_="info-banner-text",
                     ),
 
@@ -88,6 +88,21 @@ app_ui = ui.page_fluid(
                         selected="normal", width="100%",
                     ),
 
+                    # Statistic selector
+                    ui.input_select(
+                        "ci_statistic",
+                        ui.TagList("Statistic", tip(
+                            "The population parameter to estimate. "
+                            "Median and Variance use Bootstrap only."
+                        )),
+                        choices={
+                            "mean":     "Mean",
+                            "median":   "Median",
+                            "variance": "Variance",
+                        },
+                        selected="mean", width="100%",
+                    ),
+
                     # CI method selector
                     ui.input_select(
                         "ci_method",
@@ -107,13 +122,6 @@ app_ui = ui.page_fluid(
 
                     # Dynamic distribution parameters
                     ui.output_ui("dynamic_params"),
-
-                    # Theoretical formulas
-                    ui.div(
-                        ui.div("THEORETICAL FORMULAS", class_="card-title", style="text-align:center;margin-bottom:6px;"),
-                        ui.output_ui("formulas_ui"),
-                        class_="glass-card formulas-card",
-                    ),
 
                     # Sampling controls
                     ui.div(
@@ -179,12 +187,20 @@ app_ui = ui.page_fluid(
                             class_="stat-card",
                         ),
                         ui.div(
-                            ui.div("\u03bc INCLUDED ", tip("Count of intervals where the true \u03bc falls inside the CI."), class_="stat-label"),
+                            ui.div(
+                                ui.output_text("stat_label_inc", inline=True), " ",
+                                tip("Count of intervals where the true parameter falls inside the CI."),
+                                class_="stat-label",
+                            ),
                             ui.div(ui.output_text("num_covered", inline=True), class_="stat-value included"),
                             class_="stat-card",
                         ),
                         ui.div(
-                            ui.div("\u03bc MISSED ", tip("Count of intervals where the true \u03bc falls outside the CI."), class_="stat-label"),
+                            ui.div(
+                                ui.output_text("stat_label_miss", inline=True), " ",
+                                tip("Count of intervals where the true parameter falls outside the CI."),
+                                class_="stat-label",
+                            ),
                             ui.div(ui.output_text("num_missed", inline=True), class_="stat-value missed"),
                             class_="stat-card",
                         ),
@@ -201,7 +217,7 @@ app_ui = ui.page_fluid(
                         # Left column: 3 small charts (CLT on top)
                         ui.div(
                             ui.div(
-                                ui.div("SAMPLE MEANS DISTRIBUTION (CLT)", class_="card-title"),
+                                ui.div(ui.output_text("stat_plot_title", inline=True), class_="card-title"),
                                 ui.output_ui("means_plot"),
                                 class_="glass-card chart-card",
                             ),

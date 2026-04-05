@@ -155,12 +155,27 @@ def power_server(input, output, session, is_dark):
             class_=cls,
         )
 
-    # ── Conditional inputs — show input OR computed display ───────────────────
+    # ── Computed result — displayed right after "Solve for" ────────────────────
+    @render.ui
+    def pw_computed_result():
+        solve = input.pw_solve_for()
+        d, n, alpha, power, n_feasible = pw_computed()
+        if solve == "power":
+            return _param_display("Power (1\u2212\u03b2)", f"{power:.3f}", "power")
+        if solve == "n":
+            val = f"{n:,}" if n_feasible else "\u2014 (increase d or \u03b1)"
+            return _param_display("Sample size (n)", val, "n")
+        if solve == "d":
+            return _param_display("Cohen\u2019s d", f"{d:.3f}", "d")
+        if solve == "alpha":
+            return _param_display("\u03b1 (significance level)", f"{alpha:.4f}", "alpha")
+        return ui.div()
+
+    # ── Conditional inputs — hidden when that param is being solved ──────────
     @render.ui
     def pw_input_d():
         if input.pw_solve_for() == "d":
-            d, *_ = pw_computed()
-            return _param_display("Cohen\u2019s d", f"{d:.3f}", "d")
+            return ui.div()
         return ui.input_slider(
             "pw_d",
             ui.TagList("Cohen\u2019s d",
@@ -172,10 +187,7 @@ def power_server(input, output, session, is_dark):
     @render.ui
     def pw_input_n():
         if input.pw_solve_for() == "n":
-            _, n, _, _, n_feasible = pw_computed()
-            label = "Sample size (n)"
-            val   = f"{n:,}" if n_feasible else "\u2014 (increase d or \u03b1)"
-            return _param_display(label, val, "n")
+            return ui.div()
         return ui.div(
             ui.input_numeric(
                 "pw_n",
@@ -190,8 +202,7 @@ def power_server(input, output, session, is_dark):
     @render.ui
     def pw_input_alpha():
         if input.pw_solve_for() == "alpha":
-            _, _, alpha, *_ = pw_computed()
-            return _param_display("\u03b1 (significance level)", f"{alpha:.4f}", "alpha")
+            return ui.div()
         return ui.input_slider(
             "pw_alpha",
             ui.TagList("\u03b1 (significance level)",
@@ -202,8 +213,7 @@ def power_server(input, output, session, is_dark):
     @render.ui
     def pw_input_power():
         if input.pw_solve_for() == "power":
-            *_, power = pw_computed()
-            return _param_display("Power (1\u2212\u03b2)", f"{power:.3f}", "power")
+            return ui.div()
         return ui.input_slider(
             "pw_power",
             ui.TagList("Power (1\u2212\u03b2)",

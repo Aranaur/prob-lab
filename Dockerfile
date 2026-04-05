@@ -19,6 +19,7 @@ RUN uv sync --frozen
 # Копіюємо всі модулі додатку та папку зі стилями
 COPY --chown=user:user app.py ui_layout.py server.py plots.py utils.py ./
 COPY --chown=user:user pvalue_ui.py pvalue_server.py pvalue_plots.py ./
+COPY --chown=user:user power_ui.py power_server.py power_plots.py ./
 COPY --chown=user:user css/ ./css/
 
 # Відкриваємо порт

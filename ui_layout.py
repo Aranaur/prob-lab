@@ -5,6 +5,7 @@
 from shiny import ui
 from utils import tip
 from pvalue_ui import pvalue_panel
+from power_ui import power_panel
 
 app_ui = ui.page_fluid(
 
@@ -237,6 +238,9 @@ app_ui = ui.page_fluid(
 
         # ── Tab 2: p-value Explorer ────────────────────────────────────────────
         pvalue_panel(),
+
+        # ── Tab 3: Power Explorer ─────────────────────────────────────────────
+        power_panel(),
 
         ui.nav_spacer(),
         ui.nav_control(

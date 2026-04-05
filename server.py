@@ -11,6 +11,7 @@ from shiny import reactive, render, ui
 from utils import tip
 from plots import draw_ci_plot, draw_prop_plot, draw_width_plot, draw_means_plot
 from pvalue_server import pvalue_server
+from power_server import power_server
 
 # Plotly → HTML config (modebar hidden, responsive sizing)
 _PLOTLY_CONFIG = {"displayModeBar": False, "responsive": True}
@@ -38,6 +39,7 @@ def server(input, output, session):
         is_dark.set(input.theme_toggle() % 2 == 0)
 
     pvalue_server(input, output, session, is_dark)
+    power_server(input, output, session, is_dark)
 
     MAX_DISPLAY = 50      # CI intervals shown on chart
     MAX_DATA    = 10_000  # rolling window for histogram / proportion data

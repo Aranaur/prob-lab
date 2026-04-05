@@ -472,6 +472,12 @@ h1.main-title {
 .stat-value.missed    { color: #f87171; }
 .stat-value.total     { color: #c084fc; }
 
+/* Power Explorer stat colours */
+.stat-value.pw-d      { color: #38bdf8; }
+.stat-value.pw-n      { color: #34d399; }
+.stat-value.pw-alpha  { color: #fbbf24; }
+.stat-value.pw-power  { color: #c084fc; }
+
 /* ── Charts area ──────────────────────────────────────────────────────────── */
 .charts-area {
   flex: 1;
@@ -555,6 +561,15 @@ body.light-mode .stat-value.coverage { color: #0284c7; }
 body.light-mode .stat-value.included { color: #059669; }
 body.light-mode .stat-value.missed   { color: #dc2626; }
 body.light-mode .stat-value.total    { color: #9333ea; }
+
+/* Power Explorer stat colours — light mode */
+body.light-mode .stat-value.pw-d     { color: #0284c7; }
+body.light-mode .stat-value.pw-n     { color: #059669; }
+body.light-mode .stat-value.pw-alpha { color: #d97706; }
+body.light-mode .stat-value.pw-power { color: #9333ea; }
+
+/* Power Explorer: two equal-width chart columns */
+.pw-charts > .glass-card { flex: 1; min-width: 0; }
 
 /* Info banner: subtle blue tint */
 body.light-mode .info-banner-text {

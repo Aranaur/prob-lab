@@ -124,17 +124,6 @@ app_ui = ui.page_fluid(
                             ui.input_action_button("btn_sample_100", "\u00d7100", class_="btn-ctrl btn-sample btn-flex"),
                             class_="sidebar-btn-row",
                         ),
-                        # Row 2: sample size
-                        ui.div(
-                            ui.div(
-                                ui.tags.label("Sample size (n)"),
-                                ui.input_action_button("n_minus", "\u2212", class_="btn-ctrl btn-pm"),
-                                ui.input_numeric("sample_size", label="", value=5, min=2, max=500, step=1, width="40px"),
-                                ui.input_action_button("n_plus", "+", class_="btn-ctrl btn-pm"),
-                                class_="ctrl-group ctrl-group-full",
-                            ),
-                            class_="sidebar-btn-row",
-                        ),
                         # Row 3: speed + play
                         ui.div(
                             ui.div(

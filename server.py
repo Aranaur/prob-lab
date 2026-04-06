@@ -147,8 +147,8 @@ def server(input, output, session):
 
         if dist == "normal":
             r1 = ui.div(
-                ui.div(ui.input_numeric("pop_mean", ui.TagList("Population Mean (\u03bc)\u00a0", tip("The expected value (center) of the normal distribution.")), value=0.0, step=0.5, width="100%")),
-                ui.div(ui.input_numeric("pop_sd", ui.TagList("Population Std Dev (\u03c3)\u00a0", tip("Measures the spread of the distribution around the mean.")), value=1.0, min=0.1, step=0.5, width="100%")),
+                ui.div(ui.input_numeric("pop_mean", ui.TagList("Population \u03bc\u00a0", tip("The expected value (center) of the normal distribution.")), value=0.0, step=0.5, width="100%")),
+                ui.div(ui.input_numeric("pop_sd", ui.TagList("Population \u03c3\u00a0", tip("Measures the spread of the distribution around the mean.")), value=1.0, min=0.1, step=0.5, width="100%")),
                 class_="group-params-cols"
             )
             return ui.div(r1, ui.div(n_col, ui.div(), class_="group-params-cols"), class_="group-params-block")

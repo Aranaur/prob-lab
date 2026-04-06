@@ -88,6 +88,9 @@ app_ui = ui.page_fluid(
                         selected="normal", width="100%",
                     ),
 
+                    # Dynamic distribution parameters
+                    ui.output_ui("dynamic_params"),
+
                     # Statistic selector (dynamic — adds Proportion for Binomial)
                     ui.output_ui("ci_statistic_ui"),
 
@@ -111,8 +114,7 @@ app_ui = ui.page_fluid(
                         width="100%",
                     ),
 
-                    # Dynamic distribution parameters
-                    ui.output_ui("dynamic_params"),
+
 
                     # Sampling controls
                     ui.div(

@@ -1,6 +1,6 @@
 ---
-title: Prob Lab
-emoji: 🧪
+title: Lord Of The Probability and Statistics
+emoji: 💍
 colorFrom: blue
 colorTo: red
 sdk: docker

@@ -93,15 +93,19 @@ app_ui = ui.page_fluid(
                         "ci_statistic",
                         ui.TagList("Statistic", tip(
                             "The population parameter to estimate. "
-                            "Median and Variance use Bootstrap only."
+                            "Median, Variance, and Percentile use Bootstrap only."
                         )),
                         choices={
-                            "mean":     "Mean",
-                            "median":   "Median",
-                            "variance": "Variance",
+                            "mean":       "Mean",
+                            "median":     "Median",
+                            "variance":   "Variance",
+                            "percentile": "Percentile",
                         },
                         selected="mean", width="100%",
                     ),
+
+                    # Percentile level — shown only when Percentile is selected
+                    ui.output_ui("ci_percentile_param"),
 
                     # CI method selector
                     ui.input_select(
@@ -233,12 +237,17 @@ app_ui = ui.page_fluid(
                             ),
                             class_="charts-col-left",
                         ),
-                        # Right column: main CI chart
+                        # Right column: population distribution + CI chart
                         ui.div(
+                            ui.div(
+                                ui.div("POPULATION DISTRIBUTION", class_="card-title"),
+                                ui.output_ui("population_plot"),
+                                class_="glass-card chart-card chart-card-pop",
+                            ),
                             ui.div(
                                 ui.div("CONFIDENCE INTERVALS", class_="card-title"),
                                 ui.output_ui("ci_plot"),
-                                class_="glass-card chart-card",
+                                class_="glass-card chart-card chart-card-ci",
                             ),
                             class_="charts-col-right",
                         ),

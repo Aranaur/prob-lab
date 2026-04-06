@@ -521,6 +521,10 @@ h1.main-title {
   overflow: hidden;
 }
 
+/* Population / CI chart height ratio 1:2 */
+.chart-card-pop { flex: 1; }
+.chart-card-ci  { flex: 2; }
+
 /* Plotly container stretches to fill */
 .plotly-container,
 .plotly-container > div {

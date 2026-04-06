@@ -9,7 +9,7 @@ from scipy import stats
 from shiny import reactive, render, ui
 
 from utils import tip
-from plots import draw_ci_plot, draw_prop_plot, draw_width_plot, draw_means_plot
+from plots import draw_ci_plot, draw_prop_plot, draw_width_plot, draw_means_plot, draw_population_plot
 from pvalue_server import pvalue_server
 from power_server import power_server
 
@@ -52,6 +52,7 @@ def server(input, output, session):
     all_estimates: reactive.Value[deque] = reactive.value(deque(maxlen=MAX_DATA))
     prop_x:     reactive.Value[deque] = reactive.value(deque(maxlen=MAX_DATA))
     prop_y:     reactive.Value[deque] = reactive.value(deque(maxlen=MAX_DATA))
+    last_sample: reactive.Value[list] = reactive.value([])
     is_playing = reactive.value(False)
     speed_ms = reactive.value(0.5)     # seconds
 
@@ -60,7 +61,7 @@ def server(input, output, session):
     @reactive.event(input.ci_statistic)
     def _sync_ci_method():
         stat = input.ci_statistic()
-        if stat in ("median", "variance"):
+        if stat in ("median", "variance", "percentile"):
             ui.update_select("ci_method",
                 choices={"bootstrap": "Bootstrap   (percentile, B\u200a=\u200a500)"},
                 selected="bootstrap")
@@ -72,6 +73,18 @@ def server(input, output, session):
                     "bootstrap": "Bootstrap   (percentile, B\u200a=\u200a500)",
                 },
                 selected="t")
+
+    # ── Percentile level slider (visible only when Percentile selected) ───────
+    @render.ui
+    def ci_percentile_param():
+        if input.ci_statistic() != "percentile":
+            return ui.div()
+        return ui.input_slider(
+            "ci_percentile_level",
+            ui.TagList("Percentile level (p)",
+                       tip("The p-th percentile of the population distribution to estimate via Bootstrap CI.")),
+            min=1, max=99, value=25, step=1, width="100%",
+        )
 
     # ── Dynamic Parameters UI ──────────────────────────────────────────────
     @render.ui
@@ -219,6 +232,47 @@ def server(input, output, session):
             return median
         if stat == "variance":
             return variance
+        if stat == "percentile":
+            try:
+                p = (input.ci_percentile_level() or 25) / 100.0
+            except Exception:
+                p = 0.25
+            dist = input.pop_dist()
+            # Use scipy ppf for the exact population percentile
+            if dist == "normal":
+                try: mu_ = float(input.pop_mean() or 0.0); sg_ = float(input.pop_sd() or 1.0)
+                except Exception: mu_, sg_ = 0.0, 1.0
+                return float(stats.norm.ppf(p, mu_, sg_))
+            elif dist == "uniform":
+                try:
+                    a_ = float(input.pop_min() or 0.0); b_ = float(input.pop_max() or 1.0)
+                    if a_ > b_: a_, b_ = b_, a_
+                except Exception: a_, b_ = 0.0, 1.0
+                return float(stats.uniform.ppf(p, a_, b_ - a_))
+            elif dist == "exponential":
+                try: lam_ = float(input.pop_lambda() or 1.0)
+                except Exception: lam_ = 1.0
+                if lam_ <= 0: lam_ = 1e-6
+                return float(stats.expon.ppf(p, scale=1.0 / lam_))
+            elif dist == "lognormal":
+                try:
+                    lnmu_ = float(input.lnorm_mu() or 0.0)
+                    lnsg_ = float(input.lnorm_sigma() or 0.5)
+                    if lnsg_ <= 0: lnsg_ = 0.1
+                except Exception: lnmu_, lnsg_ = 0.0, 0.5
+                return float(stats.lognorm.ppf(p, s=lnsg_, scale=float(np.exp(lnmu_))))
+            elif dist == "poisson":
+                try: lam_ = float(input.pois_lam() or 3.0)
+                except Exception: lam_ = 3.0
+                if lam_ <= 0: lam_ = 0.1
+                return float(stats.poisson.ppf(p, lam_))
+            elif dist == "binomial":
+                try:
+                    m_ = int(input.binom_n() or 10); p_ = float(input.binom_p() or 0.5)
+                    m_ = max(1, m_); p_ = max(0.001, min(0.999, p_))
+                except Exception: m_, p_ = 10, 0.5
+                return float(stats.binom.ppf(p, m_, p_))
+            return float(np.percentile([mu], 50))  # fallback
         return mu
 
     # ── Sample size +/- ────────────────────────────────────────────────────
@@ -293,8 +347,28 @@ def server(input, output, session):
         all_estimates.set(deque(maxlen=MAX_DATA))
         prop_x.set(deque(maxlen=MAX_DATA))
         prop_y.set(deque(maxlen=MAX_DATA))
+        last_sample.set([])
         is_playing.set(False)
         ui.update_action_button("btn_play", label="Play")
+
+    # Reset when percentile level changes (conditional input — needs try/except)
+    @reactive.effect
+    def _reset_on_percentile_level():
+        try:
+            input.ci_percentile_level()
+        except Exception:
+            return
+        if input.ci_statistic() == "percentile":
+            total_drawn.set(0)
+            total_covered.set(0)
+            history.set([])
+            all_widths.set(deque(maxlen=MAX_DATA))
+            all_estimates.set(deque(maxlen=MAX_DATA))
+            prop_x.set(deque(maxlen=MAX_DATA))
+            prop_y.set(deque(maxlen=MAX_DATA))
+            last_sample.set([])
+            is_playing.set(False)
+            ui.update_action_button("btn_play", label="Play")
 
     # ── Core sampling logic ───────────────────────────────────────────────
     def draw_samples(k: int):
@@ -355,7 +429,14 @@ def server(input, output, session):
         else:
             samps = np.random.normal(mu, sigma, size=(n, k))
 
+        # Store the most recent single sample for the population plot
+        last_sample.set(samps[:, -1].tolist())
+
         stat_type = input.ci_statistic()
+        try:
+            p_level = int(input.ci_percentile_level() or 25)
+        except Exception:
+            p_level = 25
 
         # Point estimates for the chosen statistic
         if stat_type == "mean":
@@ -364,6 +445,8 @@ def server(input, output, session):
             estimates = np.median(samps, axis=0)
         elif stat_type == "variance":
             estimates = np.var(samps, axis=0, ddof=1)
+        elif stat_type == "percentile":
+            estimates = np.percentile(samps, p_level, axis=0)
         else:
             estimates = np.mean(samps, axis=0)
 
@@ -392,6 +475,8 @@ def server(input, output, session):
                 boot_stats = np.median(boot_samps, axis=1)
             elif stat_type == "variance":
                 boot_stats = np.var(boot_samps, axis=1, ddof=1)
+            elif stat_type == "percentile":
+                boot_stats = np.percentile(boot_samps, p_level, axis=1)
             else:
                 boot_stats = boot_samps.mean(axis=1)
             alpha_pct = (1 - conf) * 100
@@ -477,18 +562,30 @@ def server(input, output, session):
     @render.text
     def stat_label_inc():
         s = input.ci_statistic()
+        if s == "percentile":
+            try: p = int(input.ci_percentile_level() or 25)
+            except Exception: p = 25
+            return f"P{p} INCLUDED"
         return {"mean": "\u03bc INCLUDED", "median": "MEDIAN INCLUDED",
                 "variance": "\u03c3\u00b2 INCLUDED"}.get(s, "\u03bc INCLUDED")
 
     @render.text
     def stat_label_miss():
         s = input.ci_statistic()
+        if s == "percentile":
+            try: p = int(input.ci_percentile_level() or 25)
+            except Exception: p = 25
+            return f"P{p} MISSED"
         return {"mean": "\u03bc MISSED", "median": "MEDIAN MISSED",
                 "variance": "\u03c3\u00b2 MISSED"}.get(s, "\u03bc MISSED")
 
     @render.text
     def stat_plot_title():
         s = input.ci_statistic()
+        if s == "percentile":
+            try: p = int(input.ci_percentile_level() or 25)
+            except Exception: p = 25
+            return f"SAMPLE P{p} DISTRIBUTION"
         return {"mean": "SAMPLE MEANS DISTRIBUTION (CLT)",
                 "median": "SAMPLE MEDIANS DISTRIBUTION",
                 "variance": "SAMPLE VARIANCES DISTRIBUTION"}.get(s, "SAMPLE STATISTICS DISTRIBUTION")
@@ -502,8 +599,10 @@ def server(input, output, session):
         mu, sigma, *_ = true_params()
         tv = true_value()
         stat = input.ci_statistic()
+        try: p_level = int(input.ci_percentile_level() or 25)
+        except Exception: p_level = 25
         fig = draw_ci_plot(history(), tv, sigma, int(n), input.ci_method(),
-                           statistic=stat, dark=is_dark())
+                           statistic=stat, p_level=p_level, dark=is_dark())
         return _fig_to_ui(fig)
 
     @render.ui
@@ -525,6 +624,46 @@ def server(input, output, session):
         mu, sigma, *_ = true_params()
         tv = true_value()
         stat = input.ci_statistic()
+        try: p_level = int(input.ci_percentile_level() or 25)
+        except Exception: p_level = 25
         fig = draw_means_plot(list(all_estimates()), tv, sigma, int(n),
-                              statistic=stat, dark=is_dark())
+                              statistic=stat, p_level=p_level, dark=is_dark())
+        return _fig_to_ui(fig)
+
+    @render.ui
+    def population_plot():
+        dist = input.pop_dist()
+        stat = input.ci_statistic()
+        try: p_level = int(input.ci_percentile_level() or 25)
+        except Exception: p_level = 25
+        tv = true_value()
+
+        # Build distribution params dict for the plot function
+        try:
+            if dist == "normal":
+                params = {"mu": float(input.pop_mean() or 0.0),
+                          "sigma": float(input.pop_sd() or 1.0)}
+            elif dist == "uniform":
+                a_ = float(input.pop_min() or 0.0)
+                b_ = float(input.pop_max() or 1.0)
+                if a_ > b_: a_, b_ = b_, a_
+                params = {"a": a_, "b": b_}
+            elif dist == "exponential":
+                params = {"lam": float(input.pop_lambda() or 1.0)}
+            elif dist == "lognormal":
+                params = {"lnmu": float(input.lnorm_mu() or 0.0),
+                          "lnsg": float(input.lnorm_sigma() or 0.5)}
+            elif dist == "poisson":
+                params = {"lam": float(input.pois_lam() or 3.0)}
+            elif dist == "binomial":
+                params = {"m": int(input.binom_n() or 10),
+                          "p": float(input.binom_p() or 0.5)}
+            else:
+                params = {}
+        except Exception:
+            params = {}
+
+        params["p_level"] = p_level
+        fig = draw_population_plot(dist, params, last_sample(), tv,
+                                   statistic=stat, dark=is_dark())
         return _fig_to_ui(fig)

@@ -4,6 +4,7 @@
 
 import numpy as np
 from scipy import stats
+from scipy.stats import nct as nct_dist
 import plotly.graph_objects as go
 
 from plots import _DARK_LAYOUT, _LIGHT_LAYOUT, _LABEL, _LIGHT_LABEL, _base_fig, _theme
@@ -222,26 +223,54 @@ def draw_power_diagram(
     y0 = stats.norm.pdf(xs, mu0, se)
     y1 = stats.norm.pdf(xs, mu_true, se)
 
-    if alternative == "two-sided":
-        cv_lo = mu0 + _cv(alpha / 2)       * se
-        cv_hi = mu0 + _cv(1 - alpha / 2)   * se
-        theo_power  = (stats.norm.cdf(cv_lo, mu_true, se) +
-                       1 - stats.norm.cdf(cv_hi, mu_true, se))
-        alpha_masks = [xs <= cv_lo, xs >= cv_hi]
-        power_masks = [xs <= cv_lo, xs >= cv_hi]
-        cv_lines    = [cv_lo, cv_hi]
-    elif alternative == "greater":
-        cv_hi       = mu0 + _cv(1 - alpha) * se
-        theo_power  = 1 - stats.norm.cdf(cv_hi, mu_true, se)
-        alpha_masks = [xs >= cv_hi]
-        power_masks = [xs >= cv_hi]
-        cv_lines    = [cv_hi]
+    if method == "z":
+        if alternative == "two-sided":
+            cv_lo = mu0 + _cv(alpha / 2)       * se
+            cv_hi = mu0 + _cv(1 - alpha / 2)   * se
+            theo_power  = (stats.norm.cdf(cv_lo, mu_true, se) +
+                           1 - stats.norm.cdf(cv_hi, mu_true, se))
+            alpha_masks = [xs <= cv_lo, xs >= cv_hi]
+            power_masks = [xs <= cv_lo, xs >= cv_hi]
+            cv_lines    = [cv_lo, cv_hi]
+        elif alternative == "greater":
+            cv_hi       = mu0 + _cv(1 - alpha) * se
+            theo_power  = 1 - stats.norm.cdf(cv_hi, mu_true, se)
+            alpha_masks = [xs >= cv_hi]
+            power_masks = [xs >= cv_hi]
+            cv_lines    = [cv_hi]
+        else:
+            cv_lo       = mu0 + _cv(alpha)     * se
+            theo_power  = stats.norm.cdf(cv_lo, mu_true, se)
+            alpha_masks = [xs <= cv_lo]
+            power_masks = [xs <= cv_lo]
+            cv_lines    = [cv_lo]
     else:
-        cv_lo       = mu0 + _cv(alpha)     * se
-        theo_power  = stats.norm.cdf(cv_lo, mu_true, se)
-        alpha_masks = [xs <= cv_lo]
-        power_masks = [xs <= cv_lo]
-        cv_lines    = [cv_lo]
+        ncp = (mu_true - mu0) / se
+        if alternative == "two-sided":
+            cv_lo = mu0 + _cv(alpha / 2)       * se
+            cv_hi = mu0 + _cv(1 - alpha / 2)   * se
+            tc = stats.t.ppf(1 - alpha / 2, max(df,1))
+            tp = nct_dist.cdf(-tc, max(df,1), ncp) + 1 - nct_dist.cdf(tc, max(df,1), ncp)
+            theo_power = 1.0 if np.isnan(tp) else tp
+            alpha_masks = [xs <= cv_lo, xs >= cv_hi]
+            power_masks = [xs <= cv_lo, xs >= cv_hi]
+            cv_lines    = [cv_lo, cv_hi]
+        elif alternative == "greater":
+            cv_hi       = mu0 + _cv(1 - alpha) * se
+            tc = stats.t.ppf(1 - alpha, max(df,1))
+            tp = 1 - nct_dist.cdf(tc, max(df,1), ncp)
+            theo_power = 1.0 if np.isnan(tp) else tp
+            alpha_masks = [xs >= cv_hi]
+            power_masks = [xs >= cv_hi]
+            cv_lines    = [cv_hi]
+        else:
+            cv_lo       = mu0 + _cv(alpha)     * se
+            tc = stats.t.ppf(1 - alpha, max(df,1))
+            tp = nct_dist.cdf(-tc, max(df,1), ncp)
+            theo_power = 1.0 if np.isnan(tp) else tp
+            alpha_masks = [xs <= cv_lo]
+            power_masks = [xs <= cv_lo]
+            cv_lines    = [cv_lo]
 
     fig = _base_fig(
         dark=dark,

@@ -6,6 +6,7 @@ from collections import deque
 
 import numpy as np
 from scipy import stats
+from scipy.stats import nct as nct_dist
 from shiny import reactive, render, ui
 
 from utils import tip
@@ -312,20 +313,28 @@ def pvalue_server(input, output, session, is_dark):
         method  = input.pv_test_method()
         se, df  = _test_se_df()
 
-        def _cv(p): return (float(stats.norm.ppf(p)) if method == "z"
-                            else float(stats.t.ppf(p, df)))
-
-        if alt == "two-sided":
-            cv_lo = mu0 + _cv(alpha / 2)     * se
-            cv_hi = mu0 + _cv(1 - alpha / 2) * se
-            p = (stats.norm.cdf(cv_lo, mu_true, se) +
-                 1 - stats.norm.cdf(cv_hi, mu_true, se))
-        elif alt == "greater":
-            cv_hi = mu0 + _cv(1 - alpha) * se
-            p = 1 - stats.norm.cdf(cv_hi, mu_true, se)
+        if method == "z":
+            if alt == "two-sided":
+                z = stats.norm.ppf(1 - alpha / 2)
+                p = stats.norm.cdf(-z + (mu_true - mu0) / se) + stats.norm.cdf(-z - (mu_true - mu0) / se)
+            elif alt == "greater":
+                z = stats.norm.ppf(1 - alpha)
+                p = stats.norm.cdf((mu_true - mu0) / se - z)
+            else:
+                z = stats.norm.ppf(1 - alpha)
+                p = stats.norm.cdf(-(mu_true - mu0) / se - z)
         else:
-            cv_lo = mu0 + _cv(alpha) * se
-            p = stats.norm.cdf(cv_lo, mu_true, se)
+            ncp = (mu_true - mu0) / se
+            if alt == "two-sided":
+                tc = stats.t.ppf(1 - alpha / 2, df)
+                p = nct_dist.cdf(-tc, df, ncp) + 1 - nct_dist.cdf(tc, df, ncp)
+            elif alt == "greater":
+                tc = stats.t.ppf(1 - alpha, df)
+                p = 1 - nct_dist.cdf(tc, df, ncp)
+            else:
+                tc = stats.t.ppf(1 - alpha, df)
+                p = nct_dist.cdf(-tc, df, ncp)
+            p = 1.0 if np.isnan(p) else p
         return f"{float(p):.3f}"
 
     # ── Text outputs ──────────────────────────────────────────────────────────

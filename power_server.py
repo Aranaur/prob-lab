@@ -159,12 +159,14 @@ def power_server(input, output, session, is_dark):
     @render.ui
     def pw_computed_result():
         solve = input.pw_solve_for()
+        tt = input.pw_test_type()
         d, n, alpha, power, n_feasible = pw_computed()
         if solve == "power":
             return _param_display("Power (1\u2212\u03b2)", f"{power:.3f}", "power")
         if solve == "n":
             val = f"{n:,}" if n_feasible else "\u2014 (increase d or \u03b1)"
-            return _param_display("Sample size (n)", val, "n")
+            label = "Sample size (n per group)" if tt == "two_t" else "Sample size (n)"
+            return _param_display(label, val, "n")
         if solve == "d":
             return _param_display("Cohen\u2019s d", f"{d:.3f}", "d")
         if solve == "alpha":
@@ -188,14 +190,30 @@ def power_server(input, output, session, is_dark):
     def pw_input_n():
         if input.pw_solve_for() == "n":
             return ui.div()
-        return ui.div(
+            
+        n1_input = ui.div(
             ui.input_numeric(
                 "pw_n",
-                ui.TagList("Sample size (n)",
+                ui.TagList("Sample size (n\u2081)" if input.pw_test_type() == "two_t" else "Sample size (n)",
                            tip("Number of observations. "
                                "For two-sample tests this is the size of group\u00a01.")),
                 value=30, min=2, max=5000, step=1, width="100%",
-            ),
+            )
+        )
+        
+        if input.pw_test_type() == "two_t":
+            n2_input = ui.div(
+                ui.input_numeric(
+                    "pw_n2",
+                    ui.TagList("Sample size (n\u2082)",
+                               tip("Sample size for the second group.")),
+                    value=30, min=2, max=5000, step=1, width="100%",
+                )
+            )
+            return ui.div(ui.div(n1_input, n2_input, class_="group-params-cols"), class_="group-params-block")
+            
+        return ui.div(
+            n1_input,
             class_="slider-row",
         )
 
@@ -221,27 +239,6 @@ def power_server(input, output, session, is_dark):
             min=0.50, max=0.999, value=0.80, step=0.005, width="100%",
         )
 
-    # ── Dynamic params (n₂ for two-sample) ────────────────────────────────────
-    @render.ui
-    def pw_dynamic_params():
-        if input.pw_test_type() == "two_t":
-            if input.pw_solve_for() == "n":
-                # Solving for n assumes equal groups (n₁ = n₂ = n)
-                return _param_display(
-                    "n\u2082 (group\u00a02)",
-                    "= n\u2081 (equal groups)",
-                    "n",
-                )
-            return ui.div(
-                ui.input_numeric(
-                    "pw_n2",
-                    ui.TagList("n\u2082 (group\u00a02)",
-                               tip("Sample size for the second group.")),
-                    value=30, min=2, max=5000, step=1, width="100%",
-                ),
-                class_="slider-row",
-            )
-        return ui.div()
 
     # ── Presets ───────────────────────────────────────────────────────────────
     @reactive.effect

@@ -46,6 +46,9 @@ def power_panel() -> ui.Tag:
                     selected="power", width="100%",
                 ),
 
+                # Computed result — shown right after "Solve for"
+                ui.output_ui("pw_computed_result"),
+
                 # Test type
                 ui.input_select(
                     "pw_test_type",
@@ -68,15 +71,12 @@ def power_panel() -> ui.Tag:
                     "pw_alternative",
                     ui.TagList("Alternative", tip("Direction of the alternative hypothesis.")),
                     choices={
-                        "two-sided": "Two-sided",
-                        "greater":   "Greater (right-tailed)",
-                        "less":      "Less (left-tailed)",
+                        "two-sided": "Two-sided (\u2260)",
+                        "greater":   "Right-tailed (>)",
+                        "less":      "Left-tailed (<)",
                     },
                     selected="two-sided", width="100%",
                 ),
-
-                # Computed result — shown right after "Solve for"
-                ui.output_ui("pw_computed_result"),
 
                 # Effect size d — input or hidden when computed
                 ui.output_ui("pw_input_d"),
@@ -90,8 +90,6 @@ def power_panel() -> ui.Tag:
                 # Power — input or hidden when computed
                 ui.output_ui("pw_input_power"),
 
-                # Dynamic params (n₂ for two-sample)
-                ui.output_ui("pw_dynamic_params"),
 
                 # Presets
                 ui.input_select(

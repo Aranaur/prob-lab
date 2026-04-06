@@ -56,7 +56,36 @@ def server(input, output, session):
     is_playing = reactive.value(False)
     speed_ms = reactive.value(0.5)     # seconds
 
-    # ── Force bootstrap when statistic is not mean ──────────────────────────
+    # ── Dynamic statistic dropdown (adds Proportion for Binomial) ────────────
+    @render.ui
+    def ci_statistic_ui():
+        dist = input.pop_dist()
+        choices = {
+            "mean":       "Mean",
+            "median":     "Median",
+            "variance":   "Variance",
+            "percentile": "Percentile",
+        }
+        if dist == "binomial":
+            choices["proportion"] = "Proportion  (p\u0302 = successes / n\u00b7m)"
+        try:
+            current = input.ci_statistic()
+            selected = current if current in choices else "mean"
+        except Exception:
+            selected = "mean"
+        return ui.input_select(
+            "ci_statistic",
+            ui.TagList("Statistic", tip(
+                "The population parameter to estimate. "
+                "Median, Variance, and Percentile use Bootstrap only. "
+                "Proportion (Binomial only) uses Wald, Wilson, or Clopper-Pearson."
+            )),
+            choices=choices,
+            selected=selected,
+            width="100%",
+        )
+
+    # ── Sync ci_method choices based on chosen statistic ─────────────────────
     @reactive.effect
     @reactive.event(input.ci_statistic)
     def _sync_ci_method():
@@ -65,6 +94,14 @@ def server(input, output, session):
             ui.update_select("ci_method",
                 choices={"bootstrap": "Bootstrap   (percentile, B\u200a=\u200a500)"},
                 selected="bootstrap")
+        elif stat == "proportion":
+            ui.update_select("ci_method",
+                choices={
+                    "wald":            "Wald  (normal approx.)",
+                    "wilson":          "Wilson  (score, recommended)",
+                    "clopper_pearson": "Clopper-Pearson  (exact)",
+                },
+                selected="wald")
         else:
             ui.update_select("ci_method",
                 choices={
@@ -73,6 +110,17 @@ def server(input, output, session):
                     "bootstrap": "Bootstrap   (percentile, B\u200a=\u200a500)",
                 },
                 selected="t")
+
+    # ── Reset ci_statistic to "mean" when switching away from Binomial ────────
+    @reactive.effect
+    @reactive.event(input.pop_dist)
+    def _sync_statistic_on_dist_change():
+        if input.pop_dist() != "binomial":
+            try:
+                if input.ci_statistic() == "proportion":
+                    ui.update_select("ci_statistic", selected="mean")
+            except Exception:
+                pass
 
     # ── Percentile level slider (visible only when Percentile selected) ───────
     @render.ui
@@ -228,6 +276,12 @@ def server(input, output, session):
         """The true population value of the chosen statistic."""
         mu, sigma, median, variance = true_params()
         stat = input.ci_statistic()
+        if stat == "proportion":
+            try:
+                p = float(input.binom_p() or 0.5)
+                return max(0.001, min(0.999, p))
+            except Exception:
+                return 0.5
         if stat == "median":
             return median
         if stat == "variance":
@@ -438,6 +492,12 @@ def server(input, output, session):
         except Exception:
             p_level = 25
 
+        # Binomial m parameter (needed for proportion)
+        try:
+            binom_m = max(1, int(input.binom_n() or 10))
+        except Exception:
+            binom_m = 10
+
         # Point estimates for the chosen statistic
         if stat_type == "mean":
             estimates = np.mean(samps, axis=0)
@@ -447,6 +507,9 @@ def server(input, output, session):
             estimates = np.var(samps, axis=0, ddof=1)
         elif stat_type == "percentile":
             estimates = np.percentile(samps, p_level, axis=0)
+        elif stat_type == "proportion":
+            # p̂ = total successes / total Bernoulli trials = mean(X_i) / m
+            estimates = np.mean(samps, axis=0) / binom_m
         else:
             estimates = np.mean(samps, axis=0)
 
@@ -463,6 +526,33 @@ def server(input, output, session):
             zc  = float(stats.norm.ppf(1 - (1 - conf) / 2))
             los = estimates - zc * (sigma / np.sqrt(n))
             his = estimates + zc * (sigma / np.sqrt(n))
+
+        elif stat_type == "proportion":
+            n_eff = n * binom_m   # total Bernoulli trials per sample
+            alpha_ci = 1 - conf
+            zc = float(stats.norm.ppf(1 - alpha_ci / 2))
+            phat = estimates       # shape (k,)
+
+            if method == "wald":
+                se  = np.sqrt(phat * (1 - phat) / n_eff)
+                los = phat - zc * se
+                his = phat + zc * se
+                # intentionally NOT clipping — shows Wald breaking near 0/1
+
+            elif method == "wilson":
+                z2    = zc ** 2
+                denom = 1 + z2 / n_eff
+                ctr   = (phat + z2 / (2 * n_eff)) / denom
+                marg  = zc * np.sqrt(phat * (1 - phat) / n_eff + z2 / (4 * n_eff**2)) / denom
+                los   = np.clip(ctr - marg, 0.0, 1.0)
+                his   = np.clip(ctr + marg, 0.0, 1.0)
+
+            else:  # clopper_pearson
+                k_succ = np.round(phat * n_eff).astype(int)
+                los = np.where(k_succ == 0, 0.0,
+                               stats.beta.ppf(alpha_ci / 2, k_succ, n_eff - k_succ + 1))
+                his = np.where(k_succ == n_eff, 1.0,
+                               stats.beta.ppf(1 - alpha_ci / 2, k_succ + 1, n_eff - k_succ))
 
         else:  # bootstrap — percentile method, B=500 resamples
             B   = 500
@@ -567,7 +657,8 @@ def server(input, output, session):
             except Exception: p = 25
             return f"P{p} INCLUDED"
         return {"mean": "\u03bc INCLUDED", "median": "MEDIAN INCLUDED",
-                "variance": "\u03c3\u00b2 INCLUDED"}.get(s, "\u03bc INCLUDED")
+                "variance": "\u03c3\u00b2 INCLUDED",
+                "proportion": "p INCLUDED"}.get(s, "\u03bc INCLUDED")
 
     @render.text
     def stat_label_miss():
@@ -577,7 +668,8 @@ def server(input, output, session):
             except Exception: p = 25
             return f"P{p} MISSED"
         return {"mean": "\u03bc MISSED", "median": "MEDIAN MISSED",
-                "variance": "\u03c3\u00b2 MISSED"}.get(s, "\u03bc MISSED")
+                "variance": "\u03c3\u00b2 MISSED",
+                "proportion": "p MISSED"}.get(s, "\u03bc MISSED")
 
     @render.text
     def stat_plot_title():
@@ -588,7 +680,15 @@ def server(input, output, session):
             return f"SAMPLE P{p} DISTRIBUTION"
         return {"mean": "SAMPLE MEANS DISTRIBUTION (CLT)",
                 "median": "SAMPLE MEDIANS DISTRIBUTION",
-                "variance": "SAMPLE VARIANCES DISTRIBUTION"}.get(s, "SAMPLE STATISTICS DISTRIBUTION")
+                "variance": "SAMPLE VARIANCES DISTRIBUTION",
+                "proportion": "SAMPLE PROPORTIONS DISTRIBUTION (CLT)"}.get(s, "SAMPLE STATISTICS DISTRIBUTION")
+
+    @render.text
+    def prop_plot_title():
+        s = input.ci_statistic()
+        if s == "proportion":
+            return "PROPORTION OF CIs INCLUDING p"
+        return "PROPORTION OF CIs INCLUDING \u03bc"
 
     # ── Chart renderers (Plotly → HTML) ──────────────────────────────────
     @render.ui
@@ -621,12 +721,21 @@ def server(input, output, session):
         n = input.sample_size()
         if n is None or n < 2:
             n = 5
+        n = int(n)
         mu, sigma, *_ = true_params()
         tv = true_value()
         stat = input.ci_statistic()
         try: p_level = int(input.ci_percentile_level() or 25)
         except Exception: p_level = 25
-        fig = draw_means_plot(list(all_estimates()), tv, sigma, int(n),
+        # For proportion: sigma=sqrt(p(1-p)), n=n_eff → SE = sqrt(p(1-p)/n_eff)
+        if stat == "proportion":
+            try: binom_m = max(1, int(input.binom_n() or 10))
+            except Exception: binom_m = 10
+            sigma_plot = float(np.sqrt(tv * (1 - tv)))
+            n_plot = n * binom_m
+        else:
+            sigma_plot, n_plot = sigma, n
+        fig = draw_means_plot(list(all_estimates()), tv, sigma_plot, n_plot,
                               statistic=stat, p_level=p_level, dark=is_dark())
         return _fig_to_ui(fig)
 

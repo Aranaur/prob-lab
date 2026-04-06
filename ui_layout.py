@@ -88,21 +88,8 @@ app_ui = ui.page_fluid(
                         selected="normal", width="100%",
                     ),
 
-                    # Statistic selector
-                    ui.input_select(
-                        "ci_statistic",
-                        ui.TagList("Statistic", tip(
-                            "The population parameter to estimate. "
-                            "Median, Variance, and Percentile use Bootstrap only."
-                        )),
-                        choices={
-                            "mean":       "Mean",
-                            "median":     "Median",
-                            "variance":   "Variance",
-                            "percentile": "Percentile",
-                        },
-                        selected="mean", width="100%",
-                    ),
+                    # Statistic selector (dynamic — adds Proportion for Binomial)
+                    ui.output_ui("ci_statistic_ui"),
 
                     # Percentile level — shown only when Percentile is selected
                     ui.output_ui("ci_percentile_param"),
@@ -226,7 +213,7 @@ app_ui = ui.page_fluid(
                                 class_="glass-card chart-card",
                             ),
                             ui.div(
-                                ui.div("PROPORTION OF CIs INCLUDING \u03bc", class_="card-title"),
+                                ui.div(ui.output_text("prop_plot_title", inline=True), class_="card-title"),
                                 ui.output_ui("prop_plot"),
                                 class_="glass-card chart-card",
                             ),

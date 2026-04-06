@@ -135,9 +135,16 @@ def draw_population_plot(
 
     elif dist == "binomial":
         m_, p_ = params.get("m", 10), params.get("p", 0.5)
-        xs   = np.arange(0, m_ + 1, dtype=float)
-        ys   = stats.binom.pmf(xs.astype(int), m_, p_)
-        x_lo, x_hi = -0.5, m_ + 0.5
+        if statistic == "proportion":
+            # Show distribution of p̂ = X/m on [0, 1] scale
+            xs_int = np.arange(0, m_ + 1)
+            xs     = xs_int / float(m_)
+            ys     = stats.binom.pmf(xs_int, m_, p_)
+            x_lo, x_hi = -0.5 / m_, 1.0 + 0.5 / m_
+        else:
+            xs   = np.arange(0, m_ + 1, dtype=float)
+            ys   = stats.binom.pmf(xs.astype(int), m_, p_)
+            x_lo, x_hi = -0.5, m_ + 0.5
 
     else:
         xs, ys = np.array([0.0, 1.0]), np.array([1.0, 1.0])
@@ -184,9 +191,12 @@ def draw_population_plot(
     # ── Sample rug ticks ─────────────────────────────────────────────────────
     if len(sample) > 0:
         samp = np.array(sample)
+        # For proportion mode, rescale raw Binomial counts to [0, 1]
+        m_scale = float(params.get("m", 1)) if statistic == "proportion" else 1.0
+        samp_plot = samp / m_scale if m_scale > 1 else samp
         fig.add_trace(go.Scatter(
-            x=samp,
-            y=np.full(len(samp), rug_y),
+            x=samp_plot,
+            y=np.full(len(samp_plot), rug_y),
             mode="markers",
             marker=dict(
                 symbol="line-ns", size=10,
@@ -199,7 +209,9 @@ def draw_population_plot(
 
         # ── Sample statistic — dot on the x-axis ─────────────────────────────
         if statistic != "variance":
-            if statistic == "mean":
+            if statistic == "proportion":
+                s_val = float(np.mean(samp)) / m_scale
+            elif statistic == "mean":
                 s_val = float(np.mean(samp))
             elif statistic == "median":
                 s_val = float(np.median(samp))
@@ -249,13 +261,18 @@ def draw_ci_plot(history_data: list[dict], true_val: float, sigma: float,
         x_title = f"Sample P{p_level}"
         est_sym  = f"P{p_level}"
         param_sym = f"P{p_level} (pop.)"
+    elif statistic == "proportion":
+        x_lo, x_hi = -0.08, 1.08   # intentionally wider — Wald can breach [0,1]
+        x_title, est_sym, param_sym = "Sample proportion (p\u0302)", "p\u0302", "p"
     else:  # variance
         spread = sigma ** 2 * 3 / np.sqrt(n)
         x_lo, x_hi = max(0, true_val - spread), true_val + spread
         x_title, est_sym, param_sym = "Sample variance (s\u00b2)", "s\u00b2", "\u03c3\u00b2"
 
-    method_label = {"t": "t-interval", "z": "z-interval",
-                    "bootstrap": "Bootstrap"}.get(method, method)
+    method_label = {
+        "t": "t-interval", "z": "z-interval", "bootstrap": "Bootstrap",
+        "wald": "Wald", "wilson": "Wilson", "clopper_pearson": "Clopper-Pearson",
+    }.get(method, method)
 
     fig = _base_fig(
         dark=dark,
@@ -459,6 +476,9 @@ def draw_means_plot(sample_stats: list, true_val: float, sigma: float,
     elif statistic == "percentile":
         x_title = f"Sample P{p_level}"
         est_sym, param_sym = f"P{p_level}", f"P{p_level} (pop.)"
+    elif statistic == "proportion":
+        x_title = "Sample proportion (p\u0302)"
+        est_sym, param_sym = "p\u0302", "p"
     else:
         x_title = "Sample variance (s\u00b2)"
         est_sym, param_sym = "s\u00b2", "\u03c3\u00b2"
@@ -484,8 +504,8 @@ def draw_means_plot(sample_stats: list, true_val: float, sigma: float,
         hovertemplate=f"{est_sym}=%{{x:.3f}}<br>Density=%{{y:.3f}}<extra></extra>",
     ))
 
-    # Theoretical CLT overlay — only for mean
-    if statistic == "mean":
+    # Theoretical CLT overlay — mean and proportion (both use sigma/sqrt(n_eff))
+    if statistic in ("mean", "proportion"):
         theo_se = sigma / np.sqrt(n)
         xs = np.linspace(min(sample_stats), max(sample_stats), 200)
         fig.add_trace(go.Scatter(
@@ -504,6 +524,12 @@ def draw_means_plot(sample_stats: list, true_val: float, sigma: float,
         annot_text = (
             f"{est_sym} = {emp_mean:+.3f}  ({param_sym} = {true_val:+.3f})<br>"
             f"SE = {emp_se:.3f}  (\u03c3/\u221an = {theo_se:.3f})"
+        )
+    elif statistic == "proportion":
+        theo_se = sigma / np.sqrt(n)   # sigma=sqrt(p(1-p)), n=n_eff passed by caller
+        annot_text = (
+            f"{est_sym} = {emp_mean:.4f}  ({param_sym} = {true_val:.4f})<br>"
+            f"SE = {emp_se:.4f}  (\u221a(p(1-p)/nm) = {theo_se:.4f})"
         )
     else:
         annot_text = (

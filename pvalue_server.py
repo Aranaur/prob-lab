@@ -92,7 +92,7 @@ def pvalue_server(input, output, session, is_dark):
         structure = input.pv_test_structure()
 
         if structure == "one":
-            return ui.div(
+            sigma_col = ui.div(
                 ui.input_numeric(
                     "pv_sigma",
                     ui.TagList(
@@ -103,7 +103,18 @@ def pvalue_server(input, output, session, is_dark):
                         ),
                     ),
                     value=1.0, min=0.1, step=0.5, width="100%",
-                ),
+                )
+            )
+            n_col = ui.div(
+                ui.input_numeric(
+                    "pv_n",
+                    ui.TagList("Sample size (n)", tip("Number of observations in the sample.")),
+                    value=10, min=2, max=500, step=1, width="100%",
+                )
+            )
+            return ui.div(
+                ui.div(sigma_col, n_col, class_="group-params-cols"),
+                class_="group-params-block"
             )
 
         # ── Shared two-column header ──────────────────────────────────────────
@@ -154,36 +165,34 @@ def pvalue_server(input, output, session, is_dark):
             return ui.div(header, sigma_row, n_row, class_="group-params-block")
 
         # paired
-        rho_row = ui.input_numeric(
-            "pv_rho",
-            ui.TagList(
-                "\u03c1 (correlation)\u00a0",
-                tip(
-                    "Within-pair Pearson correlation. "
-                    "Higher \u03c1 \u2192 smaller SD of differences \u2192 more power."
+        advanced_row = ui.div(
+            ui.div(
+                ui.input_numeric(
+                    "pv_rho",
+                    ui.TagList(
+                        "\u03c1 (correlation)\u00a0",
+                        tip(
+                            "Within-pair Pearson correlation. "
+                            "Higher \u03c1 \u2192 smaller SD of differences \u2192 more power."
+                        ),
+                    ),
+                    value=0.5, min=-0.99, max=0.99, step=0.1, width="100%",
                 ),
             ),
-            value=0.5, min=-0.99, max=0.99, step=0.1, width="100%",
+            ui.div(
+                ui.input_numeric(
+                    "pv_n",
+                    ui.TagList("Pairs (n)", tip("Number of paired observations.")),
+                    value=10, min=2, max=500, step=1, width="100%",
+                ),
+            ),
+            class_="group-params-cols",
         )
-        return ui.div(header, sigma_row, rho_row, class_="group-params-block")
+        return ui.div(header, sigma_row, advanced_row, class_="group-params-block")
 
-    # ── Sample size control (hidden for two-sample — n lives in group params) ─
     @render.ui
     def pv_n_control():
-        structure = input.pv_test_structure()
-        if structure == "two":
-            return ui.div()
-        label = "Pairs (n)" if structure == "paired" else "Sample size (n)"
-        return ui.div(
-            ui.div(
-                ui.tags.label(label),
-                ui.input_action_button("pv_n_minus", "\u2212", class_="btn-ctrl btn-pm"),
-                ui.input_numeric("pv_n", label="", value=10, min=2, max=500, step=1, width="40px"),
-                ui.input_action_button("pv_n_plus", "+", class_="btn-ctrl btn-pm"),
-                class_="ctrl-group ctrl-group-full",
-            ),
-            class_="sidebar-btn-row",
-        )
+        return ui.div()
 
     # ── Sample size ± ─────────────────────────────────────────────────────────
     @reactive.effect

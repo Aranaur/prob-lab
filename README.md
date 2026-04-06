@@ -1,60 +1,92 @@
 ---
 title: Prob Lab
-emoji: 📊
+emoji: 🧪
 colorFrom: blue
-colorTo: indigo
+colorTo: red
 sdk: docker
 pinned: false
 ---
 
-# Prob Lab
+# Prob Lab 🧪📈
 
-An interactive educational platform for exploring probability theory and statistical concepts through simulation. Built with **Shiny for Python**, deployed on Hugging Face Spaces via Docker.
+An interactive educational platform for exploring probability theory, statistical inference, and hypothesis testing through dynamic simulation. 
+Built with **Shiny for Python** and **Plotly**, optimized for both desktop and mobile, and containerized with Docker.
 
-## Modules
+## 🌟 Modules Overview
 
-### 🎯 CI Explorer
-Visualize confidence interval coverage in real time. Sample from multiple distributions, compare CI methods (t, z, bootstrap), and see how the Central Limit Theorem drives coverage.
+Prob Lab consists of three deeply interactive modules designed to correct common statistical misconceptions through real-time sampling and visualization.
 
-**Controls:** confidence level, population distribution, CI method, sample size, animation speed.  
-**Charts:** CI intervals, proportion covering μ, CI width distribution, sample means (CLT).
+### 🎯 1. CI Explorer (Confidence Intervals)
+Visualize the mechanics of confidence intervals and the Central Limit Theorem. Watch how intervals behave under different population distributions and methodologies.
 
-### 🔬 p-value Explorer
-Simulate hypothesis tests repeatedly and watch p-values accumulate. Understand Type I/II errors, the null distribution, and statistical power through direct observation.
+* **Key Features:**
+  * **6 Probability Distributions:** Normal, Uniform, Exponential, Log-normal, Poisson, and Binomial.
+  * **Multiple Statistics:** Estimate Mean, Median, Variance, Percentiles, and Proportions.
+  * **Robust CI Methods:** Classical (t, z), rigorous exact methods for proportions (Wald, Wilson, Clopper-Pearson), and **Bootstrap** (percentile, B=500) for non-parametric statistics.
+  * **Live Visualizations:** Track the proportion of intervals covering the true parameter dynamically as samples grow.
 
-**Controls:** test structure (one-sample, two-sample, paired), test method (t / z), alternative hypothesis, μ₀, true μ, σ, n, α.  
-**Charts:** null distribution with rejection region, p-value histogram, power diagram.
+### 🔬 2. p-value Explorer
+Simulate hypothesis testing repeatedly to watch the accumulation of *p*-values and understand Type I/Type II errors under the hood.
 
-### ⚡ Power Explorer
-Design studies and understand the relationship between effect size, sample size, significance level, and statistical power. Based on exact power formulas with a "Solve for" mode.
+* **Key Features:**
+  * **Interactive Testing:** One-sample, Two-sample (Independent), and Paired tests ($t$-test and $z$-test).
+  * **Outlier Injection:** Vulnerability testing! Easily inject outliers via a customized slider to see how parametric tests randomly break and lose power.
+  * **Complete Control:** Dial your True $\mu$, Null $\mu_0$, Sample Size, and $\alpha$ to immediately see the Null vs. Alternative distribution overlaps.
 
-**Controls:** solve for (Power / n / d / α), test type (Z, one-sample t, two-sample t, paired t), alternative hypothesis, Cohen's d, n, α, power — plus preset scenarios.  
-**Charts:** H₀/H₁ sampling distributions with α / β / power regions, power curve (power vs n).
+### ⚡ 3. Power Explorer
+Master A/B testing design. Calculate and understand the complex relationship between Effect Size (Cohen's $d$), Sample Size ($n$), Significance level ($\alpha$), and Statistical Power ($1-\beta$).
 
-**Presets:** Clinical trial · A/B test · Psychology study · Small effect detection.
+* **Key Features:**
+  * **"Solve For" Architecture:** Lock any three parameters and the system dynamically root-finds the fourth (e.g., solve for required $n$ to achieve 80% power).
+  * **Smart Grouping:** Seamlessly groups Sample Sizes ($n_1$ and $n_2$) specifically for independent two-sample tests.
+  * **Power Curves:** A dynamic curve updates in real-time, mapping exactly where your current experimental design sits on the power trajectory.
+  * **Preset Scenarios:** Pre-loaded settings for generic A/B Tests, Clinical Trials, and Psychology Studies.
 
-## Features
+## 🏗️ Architecture Flow
 
-- Dark / light theme toggle
-- Responsive layout (desktop & mobile)
-- All plots rendered with Plotly (interactive hover, zoom)
-- MathJax for LaTeX formulas
+```mermaid
+graph TD
+    User([User Input]) -->|Shiny Reactive UI| Server[Shiny Python Server]
+    
+    subgraph Computation Layer
+        Server --> Numpy[NumPy Vectorized Sampling]
+        Server --> SciPy[SciPy Stats Distributions / Root-finding]
+        Server --> Stat[Compute Statistics: Means, CI, p-values]
+    end
+    
+    subgraph Render Engine
+        Stat --> Plotly[Plotly Go Charts]
+        Plotly --> HTML[Responsive UI Elements]
+        HTML --> Shiny[Reactive Shiny Output]
+    end
+    
+    Shiny -->|WebSocket Updates| Dashboard([Interactive Dashboard])
+    
+    style User fill:#6c5ce7,stroke:#333,stroke-width:2px,color:#fff
+    style Dashboard fill:#00b894,stroke:#333,stroke-width:2px,color:#fff
+    style Server fill:#f1c40f,stroke:#333,stroke-width:2px,color:#000
+```
 
-## Stack
+## 🛠️ Tech Stack
 
-- [Shiny for Python](https://shiny.posit.co/py/)
-- [Plotly](https://plotly.com/python/)
-- [SciPy](https://scipy.org/)
-- Docker
+- **Framework:** [Shiny for Python](https://shiny.posit.co/py/)
+- **Visuals:** [Plotly](https://plotly.com/python/) (Interactive, HTML-embedded, MathJax integrated)
+- **Math Engine:** [NumPy](https://numpy.org/) & [SciPy](https://scipy.org/)
+- **Deploy:** Docker & Hugging Face Spaces
 
-## Run locally
+## 🚀 Run Locally
+
+Ensure you have [uv](https://github.com/astral-sh/uv) installed to manage the Python environment.
 
 ```bash
+# 1. Sync dependencies
 uv sync
+
+# 2. Run the Shiny app
 shiny run app.py --host 0.0.0.0 --port 7860
 ```
 
-Or with Docker:
+Alternatively, run completely isolated via **Docker**:
 
 ```bash
 docker build -t prob-lab .

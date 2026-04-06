@@ -381,7 +381,7 @@ def draw_prop_plot(px: list, py: list, conf_target: float,
     fig.add_annotation(
         xref="paper", yref="paper", x=0.98, y=0.02,
         xanchor="right", yanchor="bottom",
-        text=f"Coverage: {last_p:.1%}<br>Wilson CI: [{last_lo:.1%}, {last_hi:.1%}]",
+        text=f"Coverage: {last_p:.1%}<br>Wilson {conf_target:.0%} CI: [{last_lo:.1%}, {last_hi:.1%}]",
         showarrow=False,
         font=dict(size=9, color=t["annot_text"]),
         bgcolor=t["annot_bg"], bordercolor=t["annot_border"], borderwidth=1, borderpad=4,

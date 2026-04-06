@@ -644,6 +644,36 @@ body.light-mode .stat-value.pw-power { color: #9333ea; }
 /* Power Explorer: two equal-width chart columns */
 .pw-charts > .glass-card { flex: 1; min-width: 0; }
 
+/* ── Group parameters block (two-sample / paired) ──────────────────────────── */
+.group-params-block {
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  padding: 4px 8px 6px;
+  background: var(--c-surface);
+}
+.group-params-cols {
+  display: flex;
+  gap: 8px;
+}
+.group-params-cols > div {
+  flex: 1;
+  min-width: 0;
+}
+.group-col-label {
+  display: block;
+  font-size: 0.67rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--c-text2);
+  text-align: center;
+  padding: 2px 0 3px;
+  text-transform: uppercase;
+}
+body.light-mode .group-params-block {
+  background: rgba(248, 250, 252, 0.9);
+  border-color: var(--c-border2);
+}
+
 /* Info banner: subtle blue tint */
 body.light-mode .info-banner-text {
   background: rgba(239, 246, 255, 0.85);

@@ -27,6 +27,8 @@ def pvalue_panel() -> ui.Tag:
                     class_="info-banner-text",
                 ),
 
+                # ── Hypothesis specification ──────────────────────────────────
+
                 # Test structure
                 ui.input_select(
                     "pv_test_structure",
@@ -61,7 +63,27 @@ def pvalue_panel() -> ui.Tag:
                     value=0.0, step=0.5, width="100%",
                 ),
 
-                # True mean / true difference
+                # Alternative hypothesis — placed next to H₀ (both define the test)
+                ui.input_select(
+                    "pv_alternative",
+                    ui.TagList(
+                        "Alternative hypothesis",
+                        tip(
+                            "two-sided: parameter \u2260 \u03bc\u2080 | "
+                            "greater: parameter > \u03bc\u2080 | "
+                            "less: parameter < \u03bc\u2080"
+                        ),
+                    ),
+                    choices={
+                        "two-sided": "Two-sided  (\u2260)",
+                        "greater":   "Right-tailed  (>)",
+                        "less":      "Left-tailed  (<)",
+                    },
+                    selected="two-sided",
+                    width="100%",
+                ),
+
+                # True mean / true difference — simulation ground truth
                 ui.input_numeric(
                     "pv_mu_true",
                     ui.TagList(
@@ -76,21 +98,12 @@ def pvalue_panel() -> ui.Tag:
                     value=0.5, step=0.25, width="100%",
                 ),
 
-                # Group 1 σ  (label "Population σ" for one-sample/paired, "Group 1 σ" for two)
-                ui.input_numeric(
-                    "pv_sigma",
-                    ui.TagList(
-                        "Population \u03c3 (group\u00a01)",
-                        tip(
-                            "Standard deviation of the population (or group 1 for two-sample). "
-                            "Used for z-test and for generating data."
-                        ),
-                    ),
-                    value=1.0, min=0.1, step=0.5, width="100%",
-                ),
+                # ── Population parameters (group-aware block) ─────────────────
+                # For one-sample: single σ input.
+                # For two-sample/paired: two-column σ A / σ B (+ n A / n B for two-sample).
+                ui.output_ui("pv_group_params"),
 
-                # Dynamic params: group 2 σ / n₂ / ρ  (rendered by server)
-                ui.output_ui("pv_dynamic_params"),
+                # ── Test settings ─────────────────────────────────────────────
 
                 # Significance level
                 ui.input_slider(
@@ -105,65 +118,56 @@ def pvalue_panel() -> ui.Tag:
                     min=0.01, max=0.20, value=0.05, step=0.01, width="100%",
                 ),
 
-                # Alternative hypothesis
-                ui.input_select(
-                    "pv_alternative",
-                    ui.TagList(
-                        "Alternative hypothesis",
-                        tip(
-                            "two-sided: parameter \u2260 \u03bc\u2080 | "
-                            "greater: parameter > \u03bc\u2080 | "
-                            "less: parameter < \u03bc\u2080"
-                        ),
-                    ),
-                    choices={
-                        "two-sided": "Two-sided",
-                        "greater":   "Right-tailed  (>)",
-                        "less":      "Left-tailed  (<)",
-                    },
-                    selected="two-sided",
-                    width="100%",
-                ),
-
                 # Test method
                 ui.input_select(
                     "pv_test_method",
                     ui.TagList(
                         "Test method",
                         tip(
-                            "t-test: \u03c3 estimated from sample \u2014 "
-                            "null distribution is t(df). "
-                            "z-test: uses known Population \u03c3 \u2014 "
-                            "null distribution is N(0,\u00a01)."
+                            "t-test: \u03c3 is estimated from each sample \u2014 "
+                            "the null distribution is t(df). "
+                            "Realistic scenario (unknown \u03c3). "
+                            "z-test: uses the true Population \u03c3 directly \u2014 "
+                            "the null distribution is N(0,\u00a01). "
+                            "Idealized / theoretical scenario."
                         ),
                     ),
                     choices={
-                        "t": "t-test  (unknown \u03c3)",
-                        "z": "z-test  (known \u03c3)",
+                        "t": "t-test  (estimate \u03c3 from sample)",
+                        "z": "z-test  (use true \u03c3)",
                     },
                     selected="t",
                     width="100%",
                 ),
 
-                # Sampling controls
+                # ── Outlier injection ─────────────────────────────────────────
+                ui.tags.hr(style="border-color: rgba(255,255,255,0.12); margin: 6px 0;"),
+                ui.input_checkbox(
+                    "pv_outlier_on",
+                    ui.TagList(
+                        "Inject outlier\u00a0",
+                        tip(
+                            "Replaces one observation in every sample with an extreme value "
+                            "opposing the true effect. "
+                            "Shows how a single outlier inflates variance and pulls the "
+                            "sample mean toward H\u2080, pushing a significant result "
+                            "into non-significance. Larger magnitude \u2192 more broken test."
+                        ),
+                    ),
+                    value=False,
+                ),
+                ui.output_ui("pv_outlier_slider"),
+
+                # ── Sampling controls ─────────────────────────────────────────
                 ui.div(
-                    # Row 1: sample buttons
+                    # Row 1: sample size (hidden for two-sample — n lives in group params)
+                    ui.output_ui("pv_n_control"),
+                    # Row 2: sample buttons
                     ui.div(
                         ui.tags.span("Sample:", class_="btn-row-label"),
                         ui.input_action_button("pv_btn_sample_1",   "\u00d71",   class_="btn-ctrl btn-sample btn-flex"),
                         ui.input_action_button("pv_btn_sample_50",  "\u00d750",  class_="btn-ctrl btn-sample btn-flex"),
                         ui.input_action_button("pv_btn_sample_100", "\u00d7100", class_="btn-ctrl btn-sample btn-flex"),
-                        class_="sidebar-btn-row",
-                    ),
-                    # Row 2: sample size
-                    ui.div(
-                        ui.div(
-                            ui.tags.label("n (per group)"),
-                            ui.input_action_button("pv_n_minus", "\u2212", class_="btn-ctrl btn-pm"),
-                            ui.input_numeric("pv_n", label="", value=10, min=2, max=500, step=1, width="40px"),
-                            ui.input_action_button("pv_n_plus", "+", class_="btn-ctrl btn-pm"),
-                            class_="ctrl-group ctrl-group-full",
-                        ),
                         class_="sidebar-btn-row",
                     ),
                     # Row 3: speed + play

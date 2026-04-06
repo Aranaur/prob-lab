@@ -44,7 +44,14 @@ def pvalue_server(input, output, session, is_dark):
     def _get_mu_true() -> float: return _safe(input.pv_mu_true, 0.5)
     def _get_sigma()   -> float: return max(_safe(input.pv_sigma,  1.0), 1e-6)
     def _get_sigma2()  -> float: return max(_safe(input.pv_sigma2, 1.0), 1e-6)
-    def _get_n()       -> int:   return max(_safe(input.pv_n,   10),  2)
+    def _get_n()       -> int:
+        try:
+            structure = input.pv_test_structure()
+        except Exception:
+            structure = "one"
+        if structure == "two":
+            return max(_safe(input.pv_n1, 10), 2)
+        return max(_safe(input.pv_n, 10), 2)
     def _get_n2()      -> int:   return max(_safe(input.pv_n2,  10),  2)
     def _get_rho()     -> float:
         r = _safe(input.pv_rho, 0.0)
@@ -79,49 +86,103 @@ def pvalue_server(input, output, session, is_dark):
 
         return float(max(se, 1e-9)), int(max(df, 1))
 
-    # ── Dynamic sidebar params (group 2 σ, n₂, ρ) ────────────────────────────
+    # ── Group parameters block ────────────────────────────────────────────────
     @render.ui
-    def pv_dynamic_params():
+    def pv_group_params():
         structure = input.pv_test_structure()
 
         if structure == "one":
-            return ui.div()
-
-        if structure == "two":
             return ui.div(
                 ui.input_numeric(
-                    "pv_sigma2",
-                    ui.TagList("Group\u00a02 \u03c3",
-                               tip("Standard deviation of the second population.")),
+                    "pv_sigma",
+                    ui.TagList(
+                        "Population \u03c3",
+                        tip(
+                            "Standard deviation of the population. "
+                            "Used for data generation and for the z-test statistic."
+                        ),
+                    ),
                     value=1.0, min=0.1, step=0.5, width="100%",
                 ),
-                ui.input_numeric(
-                    "pv_n2",
-                    ui.TagList("n\u2082 (group\u00a02)",
-                               tip("Sample size for the second group.")),
-                    value=10, min=2, max=500, step=1, width="100%",
-                ),
-                class_="slider-row",
             )
 
+        # ── Shared two-column header ──────────────────────────────────────────
+        header = ui.div(
+            ui.div(ui.tags.span("Group A", class_="group-col-label")),
+            ui.div(ui.tags.span("Group B", class_="group-col-label")),
+            class_="group-params-cols",
+        )
+
+        # ── σ row (shared by two-sample and paired) ───────────────────────────
+        sigma_row = ui.div(
+            ui.div(
+                ui.input_numeric(
+                    "pv_sigma",
+                    ui.TagList("\u03c3\u00a0", tip("Standard deviation of Group A.")),
+                    value=1.0, min=0.1, step=0.5, width="100%",
+                ),
+            ),
+            ui.div(
+                ui.input_numeric(
+                    "pv_sigma2",
+                    ui.TagList("\u03c3\u00a0", tip("Standard deviation of Group B.")),
+                    value=1.0, min=0.1, step=0.5, width="100%",
+                ),
+            ),
+            class_="group-params-cols",
+        )
+
+        if structure == "two":
+            # Use pv_n1 (not pv_n) to avoid duplicate-ID conflict with pv_n_control
+            n_row = ui.div(
+                ui.div(
+                    ui.input_numeric(
+                        "pv_n1",
+                        ui.TagList("n\u00a0", tip("Sample size of Group A.")),
+                        value=10, min=2, max=500, step=1, width="100%",
+                    ),
+                ),
+                ui.div(
+                    ui.input_numeric(
+                        "pv_n2",
+                        ui.TagList("n\u00a0", tip("Sample size of Group B.")),
+                        value=10, min=2, max=500, step=1, width="100%",
+                    ),
+                ),
+                class_="group-params-cols",
+            )
+            return ui.div(header, sigma_row, n_row, class_="group-params-block")
+
         # paired
+        rho_row = ui.input_numeric(
+            "pv_rho",
+            ui.TagList(
+                "\u03c1 (correlation)\u00a0",
+                tip(
+                    "Within-pair Pearson correlation. "
+                    "Higher \u03c1 \u2192 smaller SD of differences \u2192 more power."
+                ),
+            ),
+            value=0.5, min=-0.99, max=0.99, step=0.1, width="100%",
+        )
+        return ui.div(header, sigma_row, rho_row, class_="group-params-block")
+
+    # ── Sample size control (hidden for two-sample — n lives in group params) ─
+    @render.ui
+    def pv_n_control():
+        structure = input.pv_test_structure()
+        if structure == "two":
+            return ui.div()
+        label = "Pairs (n)" if structure == "paired" else "Sample size (n)"
         return ui.div(
-            ui.input_numeric(
-                "pv_sigma2",
-                ui.TagList("Group\u00a02 \u03c3",
-                           tip("Standard deviation of the second measurement within each pair.")),
-                value=1.0, min=0.1, step=0.5, width="100%",
+            ui.div(
+                ui.tags.label(label),
+                ui.input_action_button("pv_n_minus", "\u2212", class_="btn-ctrl btn-pm"),
+                ui.input_numeric("pv_n", label="", value=10, min=2, max=500, step=1, width="40px"),
+                ui.input_action_button("pv_n_plus", "+", class_="btn-ctrl btn-pm"),
+                class_="ctrl-group ctrl-group-full",
             ),
-            ui.input_numeric(
-                "pv_rho",
-                ui.TagList("\u03c1 (correlation)",
-                           tip(
-                               "Within-pair Pearson correlation. "
-                               "Higher \u03c1 \u2192 smaller SD of differences \u2192 more power."
-                           )),
-                value=0.5, min=-0.99, max=0.99, step=0.1, width="100%",
-            ),
-            class_="slider-row",
+            class_="sidebar-btn-row",
         )
 
     # ── Sample size ± ─────────────────────────────────────────────────────────
@@ -178,10 +239,34 @@ def pvalue_server(input, output, session, is_dark):
     @reactive.event(input.pv_btn_sample_100)
     def _pv_s100(): _draw_samples(100)
 
+    # ── Outlier slider (shown only when checkbox is on) ───────────────────────
+    @render.ui
+    def pv_outlier_slider():
+        try:
+            on = input.pv_outlier_on()
+        except Exception:
+            return ui.div()
+        if not on:
+            return ui.div()
+        return ui.input_slider(
+            "pv_outlier_mag",
+            ui.TagList(
+                "Magnitude (\u00d7\u03c3)\u00a0",
+                tip("How many standard deviations from the true mean the injected outlier is placed."),
+            ),
+            min=2, max=15, value=5, step=0.5, width="100%",
+        )
+
+    def _get_outlier_mag() -> float:
+        try:
+            return float(input.pv_outlier_mag())
+        except Exception:
+            return 5.0
+
     # ── Reset ─────────────────────────────────────────────────────────────────
     @reactive.effect
     @reactive.event(input.pv_btn_reset, input.pv_mu0, input.pv_alternative,
-                    input.pv_test_method, input.pv_test_structure)
+                    input.pv_test_method, input.pv_test_structure, input.pv_outlier_on)
     def _pv_reset():
         pv_total.set(0)
         pv_rejected.set(0)
@@ -201,9 +286,21 @@ def pvalue_server(input, output, session, is_dark):
         method      = input.pv_test_method()
         structure   = input.pv_test_structure()
 
+        try:
+            outlier_on = bool(input.pv_outlier_on())
+        except Exception:
+            outlier_on = False
+        outlier_mag = _get_outlier_mag() if outlier_on else 0.0
+
+        # Direction sign: outlier always opposes the true effect so it
+        # reduces power for any magnitude (larger mag → more broken test).
+        _eff_sign = float(np.sign(mu_true - mu0)) if abs(mu_true - mu0) > 1e-9 else 1.0
+
         if structure == "one":
             # ── One-sample ──────────────────────────────────────────────────
             samps = np.random.normal(mu_true, sigma1, size=(n1, k))
+            if outlier_on:
+                samps[0, :] = mu_true - _eff_sign * outlier_mag * sigma1
             means = samps.mean(axis=0)
             if method == "z":
                 ses      = np.full(k, sigma1 / np.sqrt(n1))
@@ -225,6 +322,8 @@ def pvalue_server(input, output, session, is_dark):
             # null: difference = mu0.
             s1 = np.random.normal(mu_true, sigma1, size=(n1, k))
             s2 = np.random.normal(0.0,     sigma2, size=(n2, k))
+            if outlier_on:
+                s1[0, :] = mu_true - _eff_sign * outlier_mag * sigma1
             d  = s1.mean(axis=0) - s2.mean(axis=0)   # observed difference
 
             if method == "z":
@@ -260,6 +359,9 @@ def pvalue_server(input, output, session, is_dark):
             # shape (n1, k, 2)
             pairs = np.random.multivariate_normal(means_pair, cov_mx, size=(n1, k))
             diffs = pairs[:, :, 0] - pairs[:, :, 1]   # (n1, k)
+            if outlier_on:
+                sigma_d = np.sqrt(sigma1**2 + sigma2**2 - 2 * rho * sigma1 * sigma2)
+                diffs[0, :] = mu_true - _eff_sign * outlier_mag * sigma_d
             d_bar = diffs.mean(axis=0)
 
             if method == "z":

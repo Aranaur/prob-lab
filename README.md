@@ -7,34 +7,40 @@ sdk: docker
 pinned: false
 ---
 
-# Prob Lab 🧪📈
+<div align="center">
+  <img src="assets/banner.png" alt="Lord of the Probability and Statistics Banner" width="100%">
+</div>
 
-An interactive educational platform for exploring probability theory, statistical inference, and hypothesis testing through dynamic simulation. 
+# Prob Lab 🧙‍♂️📊
+
+*“One Distribution to rule them all, One Interval to find them, One Test to bring them all and in the data bind them.”*
+
+**Prob Lab** is an interactive educational platform for exploring probability theory, statistical inference, and hypothesis testing through dynamic simulation. 
 Built with **Shiny for Python** and **Plotly**, optimized for both desktop and mobile, and containerized with Docker.
 
-## 🌟 Modules Overview
+## 🗺️ The Realms of Analysis (Modules)
 
 Prob Lab consists of three deeply interactive modules designed to correct common statistical misconceptions through real-time sampling and visualization.
 
-### 🎯 1. CI Explorer (Confidence Intervals)
+### 🏹 1. CI Explorer (The Quest for the True Parameter)
 Visualize the mechanics of confidence intervals and the Central Limit Theorem. Watch how intervals behave under different population distributions and methodologies.
 
 * **Key Features:**
   * **6 Probability Distributions:** Normal, Uniform, Exponential, Log-normal, Poisson, and Binomial.
-  * **Multiple Statistics:** Estimate Mean, Median, Variance, Percentiles, and Proportions.
+  * **Multiple Formulas:** Estimate Mean, Median, Variance, Percentiles, and Proportions.
   * **Robust CI Methods:** Classical (t, z), rigorous exact methods for proportions (Wald, Wilson, Clopper-Pearson), and **Bootstrap** (percentile, B=500) for non-parametric statistics.
-  * **Live Visualizations:** Track the proportion of intervals covering the true parameter dynamically as samples grow.
+  * **Live Visualizations:** Track the proportion of intervals successfully catching the true parameter (like capturing the Ring) dynamically as samples grow.
 
-### 🔬 2. p-value Explorer
+### 👁️ 2. p-value Explorer (Piercing the Shadows)
 Simulate hypothesis testing repeatedly to watch the accumulation of *p*-values and understand Type I/Type II errors under the hood.
 
 * **Key Features:**
   * **Interactive Testing:** One-sample, Two-sample (Independent), and Paired tests ($t$-test and $z$-test).
-  * **Outlier Injection:** Vulnerability testing! Easily inject outliers via a customized slider to see how parametric tests randomly break and lose power.
+  * **Outlier Injection:** Vulnerability testing! Easily inject outliers via a customized slider to see how parametric tests randomly break and lose power (like the unpredictable influence of a corrupted variable).
   * **Complete Control:** Dial your True $\mu$, Null $\mu_0$, Sample Size, and $\alpha$ to immediately see the Null vs. Alternative distribution overlaps.
 
-### ⚡ 3. Power Explorer
-Master A/B testing design. Calculate and understand the complex relationship between Effect Size (Cohen's $d$), Sample Size ($n$), Significance level ($\alpha$), and Statistical Power ($1-\beta$).
+### ⚔️ 3. Power Explorer (Gathering the Forces)
+Master A/B testing design. Calculate and understand the complex relationship between Effect Size (Cohen's $d$), Sample Size ($n$), Significance level ($\alpha$), and Statistical Power ($1-\beta$). *Is your sample army large enough to detect the signal?*
 
 * **Key Features:**
   * **"Solve For" Architecture:** Lock any three parameters and the system dynamically root-finds the fourth (e.g., solve for required $n$ to achieve 80% power).
@@ -42,7 +48,7 @@ Master A/B testing design. Calculate and understand the complex relationship bet
   * **Power Curves:** A dynamic curve updates in real-time, mapping exactly where your current experimental design sits on the power trajectory.
   * **Preset Scenarios:** Pre-loaded settings for generic A/B Tests, Clinical Trials, and Psychology Studies.
 
-## 🏗️ Architecture Flow
+## 📜 The Magic Flow (Architecture)
 
 ```mermaid
 graph TD

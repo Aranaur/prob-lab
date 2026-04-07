@@ -641,9 +641,6 @@ body.light-mode .stat-value.pw-n     { color: #059669; }
 body.light-mode .stat-value.pw-alpha { color: #d97706; }
 body.light-mode .stat-value.pw-power { color: #9333ea; }
 
-/* Power Explorer: two equal-width chart columns */
-.pw-charts > .glass-card { flex: 1; min-width: 0; }
-
 /* ── Group parameters block (two-sample / paired) ──────────────────────────── */
 .group-params-block {
   border: 1px solid var(--c-border);

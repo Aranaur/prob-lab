@@ -234,3 +234,130 @@ def draw_power_curve(
     )
 
     return fig
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 3.  Population-level overlap & Cohen's d visualisation
+# ─────────────────────────────────────────────────────────────────────────────
+def draw_cohens_d_overlap(
+    d: float,
+    dark: bool = True,
+) -> go.Figure:
+    """Two population distributions N(0,1) vs N(d,1) with overlap shading."""
+    t = _theme(dark)
+    _ax = _DARK_LAYOUT["xaxis"] if dark else _LIGHT_LAYOUT["xaxis"]
+
+    d_abs = abs(d)
+    mu0, mu1 = 0.0, d_abs          # always show H₁ to the right
+
+    # Overlap area = 2·Φ(−|d|/2) for equal-variance normals
+    overlap_pct = float(2 * stats.norm.cdf(-d_abs / 2) * 100)
+
+    # Effect-size interpretation (Cohen, 1988)
+    if d_abs < 0.2:
+        eff_label, eff_color = "negligible", "#94a3b8"
+    elif d_abs < 0.5:
+        eff_label, eff_color = "small", "#34d399"
+    elif d_abs < 0.8:
+        eff_label, eff_color = "medium", "#fbbf24"
+    else:
+        eff_label, eff_color = "large", "#f87171"
+
+    # X range — symmetric around midpoint
+    spread = max(d_abs + 3.5, 3.5)
+    centre = (mu0 + mu1) / 2
+    xs = np.linspace(centre - spread, centre + spread, 500)
+
+    y0 = stats.norm.pdf(xs, mu0, 1.0)
+    y1 = stats.norm.pdf(xs, mu1, 1.0)
+    y_overlap = np.minimum(y0, y1)
+
+    fig = _base_fig(
+        dark=dark,
+        xaxis=dict(
+            **_ax,
+            title=dict(
+                text="Standardised units (σ)",
+                font=dict(size=10, color=t["label"]),
+            ),
+        ),
+        yaxis=dict(showticklabels=False, showgrid=False, zeroline=False),
+    )
+
+    # ── Overlap fill ─────────────────────────────────────────────────────────
+    fig.add_trace(go.Scatter(
+        x=np.concatenate([xs, xs[::-1]]),
+        y=np.concatenate([y_overlap, np.zeros(len(xs))]),
+        fill="toself", fillcolor="rgba(103,232,249,0.25)",
+        line=dict(color="rgba(0,0,0,0)"), hoverinfo="skip",
+    ))
+
+    # ── Curves ───────────────────────────────────────────────────────────────
+    fig.add_trace(go.Scatter(
+        x=xs, y=y0, mode="lines",
+        line=dict(color="#94a3b8", width=1.5), hoverinfo="skip",
+    ))
+    fig.add_trace(go.Scatter(
+        x=xs, y=y1, mode="lines",
+        line=dict(color="#818cf8", width=1.5), hoverinfo="skip",
+    ))
+
+    # ── Mean reference lines ─────────────────────────────────────────────────
+    fig.add_vline(x=mu0, line_dash="dash", line_color="#94a3b8", line_width=1)
+    if d_abs > 1e-9:
+        fig.add_vline(x=mu1, line_dash="dash", line_color="#818cf8", line_width=1)
+
+    # ── Curve labels ─────────────────────────────────────────────────────────
+    y0_peak = float(y0.max())
+    fig.add_annotation(
+        x=mu0, y=y0_peak * 1.08, text="H\u2080",
+        showarrow=False, font=dict(size=11, color="#94a3b8"),
+    )
+    if d_abs > 1e-9:
+        fig.add_annotation(
+            x=mu1, y=float(y1.max()) * 1.08, text="H\u2081",
+            showarrow=False, font=dict(size=11, color="#818cf8"),
+        )
+
+    # ── Double-headed arrow showing d ────────────────────────────────────────
+    if d_abs > 0.05:
+        arrow_y = y0_peak * 0.82
+        # →
+        fig.add_annotation(
+            x=mu1, y=arrow_y, ax=mu0, ay=arrow_y,
+            xref="x", yref="y", axref="x", ayref="y",
+            text="", showarrow=True,
+            arrowhead=2, arrowsize=0.8, arrowwidth=1.5,
+            arrowcolor="#38bdf8",
+        )
+        # ←
+        fig.add_annotation(
+            x=mu0, y=arrow_y, ax=mu1, ay=arrow_y,
+            xref="x", yref="y", axref="x", ayref="y",
+            text="", showarrow=True,
+            arrowhead=2, arrowsize=0.8, arrowwidth=1.5,
+            arrowcolor="#38bdf8",
+        )
+        # label
+        fig.add_annotation(
+            x=centre, y=arrow_y * 1.12,
+            text=f"d\u200a=\u200a{d_abs:.3f}",
+            showarrow=False, font=dict(size=10, color="#38bdf8"),
+        )
+
+    # ── Stats annotation ─────────────────────────────────────────────────────
+    lines = [
+        f"Cohen\u2019s d\u200a=\u200a{d_abs:.3f}",
+        f"Overlap\u200a=\u200a{overlap_pct:.1f}\u200a%",
+        f"Effect: <span style='color:{eff_color}'>{eff_label}</span>",
+    ]
+    fig.add_annotation(
+        xref="paper", yref="paper", x=0.02, y=0.98,
+        xanchor="left", yanchor="top",
+        text="<br>".join(lines), showarrow=False,
+        font=dict(size=10, color=t["annot_text"]),
+        bgcolor=t["annot_bg"], bordercolor=t["annot_border2"],
+        borderwidth=1, borderpad=4, align="left",
+    )
+
+    return fig

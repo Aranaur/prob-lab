@@ -6,6 +6,7 @@ from shiny import ui
 from utils import tip
 from pvalue_ui import pvalue_panel
 from power_ui import power_panel
+from gof_ui import gof_panel
 
 app_ui = ui.page_fluid(
 
@@ -244,6 +245,9 @@ app_ui = ui.page_fluid(
 
         # ── Tab 3: Power Explorer ─────────────────────────────────────────────
         power_panel(),
+
+        # ── Tab 4: GoF Explorer ──────────────────────────────────────────────
+        gof_panel(),
 
         ui.nav_spacer(),
         ui.nav_control(

@@ -9,7 +9,7 @@ from scipy.optimize import brentq
 from shiny import reactive, render, ui
 
 from utils import tip
-from power_plots import draw_power_distributions, draw_power_curve
+from power_plots import draw_power_distributions, draw_power_curve, draw_cohens_d_overlap
 
 _PLOTLY_CONFIG = {"displayModeBar": False, "responsive": True}
 
@@ -400,4 +400,10 @@ def power_server(input, output, session, is_dark):
             current_n=n, current_power=power,
             alpha=alpha, dark=is_dark(),
         )
+        return _fig_to_ui(fig)
+
+    @render.ui
+    def pw_overlap_plot():
+        d, *_ = pw_computed()
+        fig = draw_cohens_d_overlap(d=d, dark=is_dark())
         return _fig_to_ui(fig)

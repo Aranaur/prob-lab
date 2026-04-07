@@ -163,19 +163,32 @@ def power_panel() -> ui.Tag:
                     class_="stats-row",
                 ),
 
-                # Charts
+                # Charts — left: stacked distributions; right: power curve
                 ui.div(
+                    # Left column: sampling distributions + Cohen's d overlap
                     ui.div(
-                        ui.div("H\u2080 / H\u2081 SAMPLING DISTRIBUTIONS", class_="card-title"),
-                        ui.output_ui("pw_dist_plot"),
-                        class_="glass-card chart-card",
+                        ui.div(
+                            ui.div("H\u2080 / H\u2081 SAMPLING DISTRIBUTIONS", class_="card-title"),
+                            ui.output_ui("pw_dist_plot"),
+                            class_="glass-card chart-card",
+                        ),
+                        ui.div(
+                            ui.div("POPULATION DISTRIBUTIONS & COHEN'S d", class_="card-title"),
+                            ui.output_ui("pw_overlap_plot"),
+                            class_="glass-card chart-card",
+                        ),
+                        class_="charts-col-left",
                     ),
+                    # Right column: power curve
                     ui.div(
-                        ui.div("POWER CURVE", class_="card-title"),
-                        ui.output_ui("pw_curve_plot"),
-                        class_="glass-card chart-card",
+                        ui.div(
+                            ui.div("POWER CURVE", class_="card-title"),
+                            ui.output_ui("pw_curve_plot"),
+                            class_="glass-card chart-card",
+                        ),
+                        class_="charts-col-right",
                     ),
-                    class_="charts-area pw-charts",
+                    class_="charts-area",
                 ),
 
                 class_="main-panel",

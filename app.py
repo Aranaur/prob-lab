@@ -1,6 +1,5 @@
 # =============================================================================
-# Confidence Intervals Explorer - Interactive Shiny for Python App
-# Inspired by https://rpsychologist.com/d3/ci/
+# Lord Of The Probability and Statistics - Interactive Shiny for Python App
 # =============================================================================
 
 from pathlib import Path

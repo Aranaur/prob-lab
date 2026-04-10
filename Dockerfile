@@ -21,6 +21,7 @@ COPY --chown=user:user app.py ui_layout.py server.py plots.py utils.py ./
 COPY --chown=user:user pvalue_ui.py pvalue_server.py pvalue_plots.py ./
 COPY --chown=user:user power_ui.py power_server.py power_plots.py ./
 COPY --chown=user:user gof_ui.py gof_server.py gof_plots.py ./
+COPY --chown=user:user nonparametric_ui.py nonparametric_server.py nonparametric_plots.py ./
 COPY --chown=user:user css/ ./css/
 
 # Відкриваємо порт

@@ -136,9 +136,18 @@ def draw_null_dist_plot(
 # ─────────────────────────────────────────────────────────────────────────────
 # 2.  p-value histogram (accumulated over many tests)
 # ─────────────────────────────────────────────────────────────────────────────
-def draw_pvalue_hist(pvalues: list, alpha: float, dark: bool = True) -> go.Figure:
+def draw_pvalue_hist(
+    pvalues: list,
+    alpha: float,
+    dark: bool = True,
+    pvalues_wilcoxon: list | None = None,
+    wilcoxon_label: str = "Wilcoxon",
+    param_label: str = "t-test",
+) -> go.Figure:
     t = _theme(dark)
     _ax = _DARK_LAYOUT["xaxis"] if dark else _LIGHT_LAYOUT["xaxis"]
+
+    dual = pvalues_wilcoxon is not None and len(pvalues_wilcoxon) >= 5
 
     fig = _base_fig(
         dark=dark,
@@ -158,6 +167,7 @@ def draw_pvalue_hist(pvalues: list, alpha: float, dark: bool = True) -> go.Figur
         )
         return fig
 
+    # Parametric histogram
     fig.add_trace(go.Histogram(
         x=pvalues,
         xbins=dict(start=0, end=1, size=0.05),
@@ -166,8 +176,33 @@ def draw_pvalue_hist(pvalues: list, alpha: float, dark: bool = True) -> go.Figur
             color="rgba(56,189,248,0.35)",
             line=dict(color="#38bdf8", width=0.6),
         ),
+        name=param_label if dual else None,
+        showlegend=dual,
         hovertemplate="p \u2208 [%{x:.2f}, %{x:.2f}+0.05)<br>Density=%{y:.2f}<extra></extra>",
     ))
+
+    # Wilcoxon overlay
+    if dual:
+        fig.add_trace(go.Histogram(
+            x=pvalues_wilcoxon,
+            xbins=dict(start=0, end=1, size=0.05),
+            histnorm="probability density",
+            marker=dict(
+                color="rgba(249,115,22,0.35)",
+                line=dict(color="#f97316", width=0.6),
+            ),
+            name=wilcoxon_label,
+            showlegend=True,
+            hovertemplate="p \u2208 [%{x:.2f}, %{x:.2f}+0.05)<br>Density=%{y:.2f}<extra></extra>",
+        ))
+        fig.update_layout(
+            barmode="overlay",
+            legend=dict(
+                font=dict(size=9, color=t["annot_text"]),
+                bgcolor="rgba(0,0,0,0)",
+                x=0.98, y=0.60, xanchor="right", yanchor="top",
+            ),
+        )
 
     fig.add_vline(x=alpha, line_dash="dash", line_color="#f87171", line_width=1.2)
     fig.add_annotation(
@@ -179,10 +214,19 @@ def draw_pvalue_hist(pvalues: list, alpha: float, dark: bool = True) -> go.Figur
     )
 
     reject_frac = sum(p < alpha for p in pvalues) / len(pvalues)
+    if dual:
+        wil_reject = sum(p < alpha for p in pvalues_wilcoxon) / len(pvalues_wilcoxon)
+        annot_text = (
+            f"<span style='color:#38bdf8'>{param_label}: {reject_frac:.1%}</span><br>"
+            f"<span style='color:#f97316'>{wilcoxon_label}: {wil_reject:.1%}</span>"
+        )
+    else:
+        annot_text = f"Reject rate: {reject_frac:.1%}"
+
     fig.add_annotation(
         xref="paper", yref="paper", x=0.98, y=0.98,
         xanchor="right", yanchor="top",
-        text=f"Reject rate: {reject_frac:.1%}",
+        text=annot_text,
         showarrow=False,
         font=dict(size=10, color=t["annot_text"]),
         bgcolor=t["annot_bg"], bordercolor=t["annot_border"], borderwidth=1, borderpad=3,

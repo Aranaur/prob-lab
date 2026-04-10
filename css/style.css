@@ -478,6 +478,9 @@ h1.main-title {
 .stat-value.pw-alpha  { color: #fbbf24; }
 .stat-value.pw-power  { color: #c084fc; }
 
+/* p-value Explorer: Wilcoxon comparison */
+.stat-value.wilcoxon { color: #f97316; }
+
 /* Nonparametric Explorer stat colours */
 .stat-value.np-nonparam  { color: #f97316; }
 .stat-value.np-advantage { color: #fbbf24; }
@@ -665,6 +668,9 @@ body.light-mode .stat-value.pw-d     { color: #0284c7; }
 body.light-mode .stat-value.pw-n     { color: #059669; }
 body.light-mode .stat-value.pw-alpha { color: #d97706; }
 body.light-mode .stat-value.pw-power { color: #9333ea; }
+
+/* p-value Explorer: Wilcoxon — light mode */
+body.light-mode .stat-value.wilcoxon { color: #ea580c; }
 
 /* Nonparametric Explorer — light mode */
 body.light-mode .stat-value.np-nonparam  { color: #ea580c; }

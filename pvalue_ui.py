@@ -158,6 +158,23 @@ def pvalue_panel() -> ui.Tag:
                 ),
                 ui.output_ui("pv_outlier_slider"),
 
+                # ── Wilcoxon comparison ──────────────────────────────────────
+                ui.tags.hr(style="border-color: rgba(255,255,255,0.12); margin: 6px 0;"),
+                ui.input_checkbox(
+                    "pv_wilcoxon_on",
+                    ui.TagList(
+                        "Compare with Wilcoxon\u00a0",
+                        tip(
+                            "Runs a nonparametric test alongside the t/z-test on every sample. "
+                            "One-sample & Paired \u2192 Wilcoxon signed-rank; "
+                            "Two-sample \u2192 Mann-Whitney U. "
+                            "Especially useful with outlier injection to see how "
+                            "nonparametric tests resist contamination."
+                        ),
+                    ),
+                    value=False,
+                ),
+
                 # ── Sampling controls ─────────────────────────────────────────
                 ui.div(
                     # Row 1: sample size (hidden for two-sample — n lives in group params)
@@ -216,19 +233,7 @@ def pvalue_panel() -> ui.Tag:
                         ui.div(ui.output_text("pv_current_pvalue", inline=True), class_="stat-value coverage"),
                         class_="stat-card",
                     ),
-                    ui.div(
-                        ui.div(
-                            "REJECT RATE\u00a0",
-                            tip(
-                                "Fraction of tests where H\u2080 was rejected. "
-                                "Equals empirical power when true value \u2260 H\u2080, "
-                                "or Type\u00a0I error rate when true value = H\u2080."
-                            ),
-                            class_="stat-label",
-                        ),
-                        ui.div(ui.output_text("pv_reject_rate", inline=True), class_="stat-value included"),
-                        class_="stat-card",
-                    ),
+                    ui.output_ui("pv_reject_stat_card"),
                     ui.div(
                         ui.div(
                             "TOTAL TESTS\u00a0",

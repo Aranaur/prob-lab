@@ -32,6 +32,10 @@ def pvalue_server(input, output, session, is_dark):
     pv_is_playing = reactive.value(False)
     pv_speed_ms   = reactive.value(0.5)
 
+    # Wilcoxon comparison state
+    pv_wilcoxon_rejected = reactive.value(0)
+    pv_wilcoxon_pvalues: reactive.Value[deque] = reactive.value(deque(maxlen=MAX_DATA))
+
     # ── Input helpers (guard against None / 0-as-falsy) ──────────────────────
     def _safe(input_fn, default):
         try:
@@ -275,12 +279,15 @@ def pvalue_server(input, output, session, is_dark):
     # ── Reset ─────────────────────────────────────────────────────────────────
     @reactive.effect
     @reactive.event(input.pv_btn_reset, input.pv_mu0, input.pv_alternative,
-                    input.pv_test_method, input.pv_test_structure, input.pv_outlier_on)
+                    input.pv_test_method, input.pv_test_structure,
+                    input.pv_outlier_on, input.pv_wilcoxon_on)
     def _pv_reset():
         pv_total.set(0)
         pv_rejected.set(0)
         pv_last_stat.set(None)
         pv_all_pvalues.set(deque(maxlen=MAX_DATA))
+        pv_wilcoxon_rejected.set(0)
+        pv_wilcoxon_pvalues.set(deque(maxlen=MAX_DATA))
         pv_is_playing.set(False)
         ui.update_action_button("pv_btn_play", label="Play")
 
@@ -393,6 +400,64 @@ def pvalue_server(input, output, session, is_dark):
         pv.extend(float(p) for p in pvals)
         pv_all_pvalues.set(pv)
 
+        # ── Wilcoxon / Mann-Whitney comparison ───────────────────────────
+        try:
+            wilcoxon_on = bool(input.pv_wilcoxon_on())
+        except Exception:
+            wilcoxon_on = False
+
+        if wilcoxon_on:
+            # Map alternative for scipy
+            alt_map = {"two-sided": "two-sided", "greater": "greater", "less": "less"}
+            scipy_alt = alt_map.get(alternative, "two-sided")
+
+            wil_pvals = []
+            if structure == "one":
+                for j in range(k):
+                    col = samps[:, j]
+                    diff = col - mu0
+                    # Remove zeros (Wilcoxon requirement)
+                    diff = diff[diff != 0]
+                    if len(diff) < 10:
+                        wil_pvals.append(float("nan"))
+                        continue
+                    try:
+                        _, wp = stats.wilcoxon(diff, alternative=scipy_alt)
+                        wil_pvals.append(float(wp))
+                    except Exception:
+                        wil_pvals.append(float("nan"))
+
+            elif structure == "two":
+                for j in range(k):
+                    a_col, b_col = s1[:, j], s2[:, j]
+                    try:
+                        _, wp = stats.mannwhitneyu(a_col, b_col, alternative=scipy_alt)
+                        wil_pvals.append(float(wp))
+                    except Exception:
+                        wil_pvals.append(float("nan"))
+
+            else:  # paired
+                for j in range(k):
+                    d_col = diffs[:, j]
+                    d_nz = d_col[d_col != 0]
+                    if len(d_nz) < 10:
+                        wil_pvals.append(float("nan"))
+                        continue
+                    try:
+                        _, wp = stats.wilcoxon(d_nz, alternative=scipy_alt)
+                        wil_pvals.append(float(wp))
+                    except Exception:
+                        wil_pvals.append(float("nan"))
+
+            # Filter out NaNs
+            valid = [p for p in wil_pvals if not np.isnan(p)]
+            wil_new_rej = sum(1 for p in valid if p < alpha)
+            pv_wilcoxon_rejected.set(pv_wilcoxon_rejected() + wil_new_rej)
+
+            wpv = deque(pv_wilcoxon_pvalues(), maxlen=MAX_DATA)
+            wpv.extend(valid)
+            pv_wilcoxon_pvalues.set(wpv)
+
     # ── p-value computation helpers ───────────────────────────────────────────
     def _pval(stat_arr: np.ndarray, alt: str, method: str, df: int) -> np.ndarray:
         d = stats.norm if method == "z" else stats.t
@@ -468,6 +533,58 @@ def pvalue_server(input, output, session, is_dark):
         return f"{100 * pv_rejected() / td:.1f}%"
 
     @render.text
+    def pv_wilcoxon_rate():
+        td = pv_total()
+        wn = len(pv_wilcoxon_pvalues())
+        if td == 0 or wn == 0:
+            return "\u2014"
+        return f"{100 * pv_wilcoxon_rejected() / wn:.1f}%"
+
+    @render.ui
+    def pv_reject_stat_card():
+        try:
+            wil_on = bool(input.pv_wilcoxon_on())
+        except Exception:
+            wil_on = False
+
+        structure = "one"
+        try:
+            structure = input.pv_test_structure()
+        except Exception:
+            pass
+
+        param_card = ui.div(
+            ui.div(
+                "REJECT RATE\u00a0",
+                tip(
+                    "Fraction of tests where H\u2080 was rejected. "
+                    "Equals empirical power when true value \u2260 H\u2080, "
+                    "or Type\u00a0I error rate when true value = H\u2080."
+                ),
+                class_="stat-label",
+            ),
+            ui.div(ui.output_text("pv_reject_rate", inline=True),
+                   class_="stat-value included"),
+            class_="stat-card",
+        )
+
+        if not wil_on:
+            return param_card
+
+        wil_label = "MWU RATE" if structure == "two" else "WILCOXON RATE"
+        wil_card = ui.div(
+            ui.div(
+                wil_label + "\u00a0",
+                tip("Empirical reject rate for the nonparametric test."),
+                class_="stat-label",
+            ),
+            ui.div(ui.output_text("pv_wilcoxon_rate", inline=True),
+                   class_="stat-value wilcoxon"),
+            class_="stat-card",
+        )
+        return ui.TagList(param_card, wil_card)
+
+    @render.text
     def pv_total_tests():
         return f"{pv_total():,}"
 
@@ -487,8 +604,33 @@ def pvalue_server(input, output, session, is_dark):
 
     @render.ui
     def pv_hist_plot():
-        fig = draw_pvalue_hist(list(pv_all_pvalues()), alpha=input.pv_alpha(),
-                               dark=is_dark())
+        try:
+            wil_on = bool(input.pv_wilcoxon_on())
+        except Exception:
+            wil_on = False
+
+        structure = "one"
+        try:
+            structure = input.pv_test_structure()
+        except Exception:
+            pass
+
+        wil_pvals = list(pv_wilcoxon_pvalues()) if wil_on else None
+        wil_label = "Mann-Whitney U" if structure == "two" else "Wilcoxon"
+        method = "t-test"
+        try:
+            method = "z-test" if input.pv_test_method() == "z" else "t-test"
+        except Exception:
+            pass
+
+        fig = draw_pvalue_hist(
+            list(pv_all_pvalues()),
+            alpha=input.pv_alpha(),
+            dark=is_dark(),
+            pvalues_wilcoxon=wil_pvals,
+            wilcoxon_label=wil_label,
+            param_label=method,
+        )
         return _fig_to_ui(fig)
 
     @render.ui

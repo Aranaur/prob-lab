@@ -573,8 +573,25 @@ body.light-mode .np-preset-hint--active { border-color: #ea580c; }
 }
 
 /* Population / CI chart height ratio 1:2 */
-.chart-card-pop { flex: 1; }
-.chart-card-ci  { flex: 2; }
+.chart-card-pop  { flex: 1; }
+.chart-card-ci   { flex: 2; }
+
+/* Multiple Testing: BH table / histogram split */
+.chart-card-bh    { flex: 1; overflow: hidden; }
+.chart-card-phist { flex: 1.5; }
+
+/* BH table: allow inner scroll, fill the card */
+.chart-card-bh .shiny-html-output {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.chart-card-bh .bh-table-wrap {
+  overflow-y: auto;
+}
+.chart-card-bh .bh-table-wrap td {
+  padding: 2px 6px;
+  white-space: nowrap;
+}
 
 /* Plotly container stretches to fill */
 .plotly-container,

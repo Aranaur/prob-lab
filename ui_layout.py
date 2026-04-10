@@ -8,6 +8,7 @@ from pvalue_ui import pvalue_panel
 from power_ui import power_panel
 from gof_ui import gof_panel
 from np_ui import np_panel
+from mt_ui import mt_panel
 
 app_ui = ui.page_fluid(
 
@@ -252,6 +253,9 @@ app_ui = ui.page_fluid(
 
         # ── Tab 5: Nonparametric Explorer ────────────────────────────────────
         np_panel(),
+
+        # ── Tab 6: Multiple Testing Explorer ────────────────────────────────
+        mt_panel(),
 
         ui.nav_spacer(),
         ui.nav_control(

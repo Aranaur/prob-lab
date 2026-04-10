@@ -506,6 +506,29 @@ h1.main-title {
   background: var(--c-glass) !important;
 }
 
+/* Preset description hint */
+.np-preset-hint {
+  font-size: 0.72rem;
+  color: var(--c-muted);
+  line-height: 1.45;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: var(--c-surface);
+  border: 1px dashed var(--c-border);
+  margin-top: 2px;
+}
+.np-preset-hint--active {
+  color: var(--c-text2);
+  border-style: solid;
+  border-color: #f97316;
+  border-left-width: 3px;
+}
+.np-preset-hint--active strong {
+  color: #f97316;
+}
+body.light-mode .np-preset-hint--active strong { color: #ea580c; }
+body.light-mode .np-preset-hint--active { border-color: #ea580c; }
+
 /* ── Charts area ──────────────────────────────────────────────────────────── */
 .charts-area {
   flex: 1;

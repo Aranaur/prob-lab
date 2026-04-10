@@ -278,6 +278,48 @@ def np_server(input, output, session, is_dark):
         )
 
     # ── Presets ───────────────────────────────────────────────────────────
+    _active_preset = reactive.value(None)
+
+    _PRESET_DESC = {
+        "normal_h0": (
+            "Normal H\u2080",
+            "Both groups N(0,1), \u03b4\u200a=\u200a0. "
+            "Simulates Type\u00a0I error under ideal conditions. "
+            "Expect both tests to reject \u2248\u00a0\u03b1 of the time.",
+        ),
+        "normal_h1": (
+            "Normal H\u2081",
+            "Both groups N(0,1), \u03b4\u200a=\u200a0.5. "
+            "Power comparison under normality. "
+            "t-test is optimal here; MW-U is slightly less powerful.",
+        ),
+        "outlier": (
+            "Outliers",
+            "A\u200a~\u200aN(0,1), B\u200a~\u200aContaminated N (10\u202f% outliers at 5\u03c3), \u03b4\u200a=\u200a0.5. "
+            "Outliers inflate t-test variance and reduce its power. "
+            "MW-U is more robust and often detects the effect better.",
+        ),
+        "skewed": (
+            "Skewed",
+            "Both groups Exp(1), \u03b4\u200a=\u200a0.5. "
+            "Skewed, right-tailed distributions. "
+            "MW-U gains efficiency over t-test under non-normality.",
+        ),
+        "myth": (
+            "Shape myth",
+            "A\u200a~\u200aExp(1), B\u200a~\u200aUniform(0,\u00a01.386), \u03b4\u200a=\u200a0. "
+            "Both have median \u2248\u00a0ln(2)\u00a0\u2248\u00a00.693, yet P(A\u200a>\u200aB)\u200a\u2248\u200a0.54. "
+            "MW-U rejects H\u2080 because shapes differ \u2014 it tests "
+            "\u2018stochastic dominance\u2019, not medians.",
+        ),
+        "cauchy": (
+            "Cauchy",
+            "Both groups Cauchy(0,1), \u03b4\u200a=\u200a0. "
+            "Undefined mean and variance \u2014 CLT fails. "
+            "t-test loses Type\u00a0I control; MW-U maintains it.",
+        ),
+    }
+
     def _apply_preset(mode, ia, ib, ip, delta, n):
         _init_a.set(ia)
         _init_b.set(ib)
@@ -289,6 +331,7 @@ def np_server(input, output, session, is_dark):
     @reactive.effect
     @reactive.event(input.np_preset_normal_h0)
     def _pr_h0():
+        _active_preset.set("normal_h0")
         _apply_preset("independent",
                        {"dist": "normal", "mu": 0.0, "sigma": 1.0},
                        {"dist": "normal", "mu": 0.0, "sigma": 1.0},
@@ -297,6 +340,7 @@ def np_server(input, output, session, is_dark):
     @reactive.effect
     @reactive.event(input.np_preset_normal_h1)
     def _pr_h1():
+        _active_preset.set("normal_h1")
         _apply_preset("independent",
                        {"dist": "normal", "mu": 0.0, "sigma": 1.0},
                        {"dist": "normal", "mu": 0.0, "sigma": 1.0},
@@ -305,6 +349,7 @@ def np_server(input, output, session, is_dark):
     @reactive.effect
     @reactive.event(input.np_preset_outlier)
     def _pr_out():
+        _active_preset.set("outlier")
         _apply_preset("independent",
                        {"dist": "normal", "mu": 0.0, "sigma": 1.0},
                        {"dist": "contaminated", "mu": 0.0, "sigma": 1.0,
@@ -314,6 +359,7 @@ def np_server(input, output, session, is_dark):
     @reactive.effect
     @reactive.event(input.np_preset_skewed)
     def _pr_skew():
+        _active_preset.set("skewed")
         _apply_preset("independent",
                        {"dist": "exponential", "rate": 1.0},
                        {"dist": "exponential", "rate": 1.0},
@@ -322,6 +368,7 @@ def np_server(input, output, session, is_dark):
     @reactive.effect
     @reactive.event(input.np_preset_myth)
     def _pr_myth():
+        _active_preset.set("myth")
         _apply_preset("independent",
                        {"dist": "exponential", "rate": 1.0},
                        {"dist": "uniform", "a": 0.0, "b": 1.386},
@@ -330,10 +377,26 @@ def np_server(input, output, session, is_dark):
     @reactive.effect
     @reactive.event(input.np_preset_cauchy)
     def _pr_cauchy():
+        _active_preset.set("cauchy")
         _apply_preset("independent",
                        {"dist": "cauchy", "x0": 0.0, "gamma": 1.0},
                        {"dist": "cauchy", "x0": 0.0, "gamma": 1.0},
                        {}, delta=0.0, n=30)
+
+    @render.ui
+    def np_preset_desc():
+        key = _active_preset()
+        if key is None:
+            return ui.div(
+                "\u2190 Select a preset to see what it demonstrates.",
+                class_="np-preset-hint",
+            )
+        title, body = _PRESET_DESC[key]
+        return ui.div(
+            ui.tags.strong(title + ": "),
+            body,
+            class_="np-preset-hint np-preset-hint--active",
+        )
 
     # ── Speed ± ──────────────────────────────────────────────────────────
     @reactive.effect

@@ -66,6 +66,7 @@ def np_panel() -> ui.Tag:
                                            class_="btn-ctrl btn-preset"),
                     class_="np-preset-grid",
                 ),
+                ui.output_ui("np_preset_desc"),
 
                 # Dynamic distribution selectors + parameters
                 ui.output_ui("np_dist_section"),

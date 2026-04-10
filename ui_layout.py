@@ -7,6 +7,7 @@ from utils import tip
 from pvalue_ui import pvalue_panel
 from power_ui import power_panel
 from gof_ui import gof_panel
+from np_ui import np_panel
 
 app_ui = ui.page_fluid(
 
@@ -248,6 +249,9 @@ app_ui = ui.page_fluid(
 
         # ── Tab 4: GoF Explorer ──────────────────────────────────────────────
         gof_panel(),
+
+        # ── Tab 5: Nonparametric Explorer ────────────────────────────────────
+        np_panel(),
 
         ui.nav_spacer(),
         ui.nav_control(

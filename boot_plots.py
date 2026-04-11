@@ -307,6 +307,7 @@ def draw_boot_convergence(results, alpha, dark=True):
         g["fpr"].append(r["fpr"])
         g["se"].append(r["se"])
 
+    max_y = max(alpha * 3, 0.15)
     for method, g in grouped.items():
         ns   = g["N"]
         fprs = np.array(g["fpr"])
@@ -318,6 +319,7 @@ def draw_boot_convergence(results, alpha, dark=True):
         # Confidence band (±1.96 SE)
         upper = fprs + 1.96 * ses
         lower = np.maximum(fprs - 1.96 * ses, 0.0)
+        max_y = max(max_y, np.max(upper))
 
         fig.add_trace(go.Scatter(
             x=ns, y=upper.tolist(), mode="lines",
@@ -355,7 +357,7 @@ def draw_boot_convergence(results, alpha, dark=True):
         xaxis_title="Sample size N",
         yaxis_title="False Positive Rate",
         xaxis=dict(type="log", dtick=1),
-        yaxis=dict(range=[0, max(alpha * 3, 0.15)]),
+        yaxis=dict(range=[0, max_y * 1.05]),
         showlegend=True,
         legend=dict(x=0.98, y=0.98, xanchor="right", yanchor="top",
                     bgcolor="rgba(0,0,0,0)"),

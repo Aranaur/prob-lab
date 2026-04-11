@@ -686,24 +686,27 @@ def boot_server(input, output, session, is_dark):
     _CONV_B = 400    # bootstrap resamples per experiment
 
     _conv_results = reactive.value([])
-    _conv_running = reactive.value(False)
 
     # ── Dynamic reference test selector ────────────────────────────────
+    _REF_LABELS = {
+        "mean":   ("t-test",   "Include t-test\u00a0",
+                   tip("One-sample t-test: benchmark for the mean "
+                       "using the t-distribution.")),
+        "median": ("Wilcoxon", "Include Wilcoxon\u00a0",
+                   tip("Wilcoxon signed-rank: non-parametric benchmark "
+                       "for the median.")),
+    }
+
     @render.ui
     def boot_conv_ref_ui():
         stat = input.boot_statistic()
-        if stat == "mean":
-            choices = {"t-test": "t-test (one-sample)"}
-            selected = "t-test"
-        elif stat == "median":
-            choices = {"Wilcoxon": "Wilcoxon signed-rank"}
-            selected = "Wilcoxon"
-        else:
-            choices = {"none": "— none available —"}
-            selected = "none"
-        return ui.input_select(
-            "boot_conv_ref", None,
-            choices=choices, selected=selected, width="180px",
+        if stat not in _REF_LABELS:
+            return ui.div()          # nothing to show
+        _key, label_text, tip_icon = _REF_LABELS[stat]
+        return ui.input_checkbox(
+            "boot_conv_ref_include",
+            ui.span(label_text, tip_icon),
+            value=True,
         )
 
     # ── Vectorized convergence simulation ──────────────────────────────
@@ -877,15 +880,17 @@ def boot_server(input, output, session, is_dark):
             methods = list(input.boot_ci_methods())
         except Exception:
             methods = ["Percentile", "Normal", "BCa"]
-        try:
-            ref = input.boot_conv_ref()
-        except Exception:
-            ref = "none"
-        if ref == "none":
-            ref = None
+        stat = input.boot_statistic()
+        ref = None
+        if stat in ("mean", "median"):
+            try:
+                include = input.boot_conv_ref_include()
+            except Exception:
+                include = True
+            if include:
+                ref = "t-test" if stat == "mean" else "Wilcoxon"
 
         true_t = _true_param(dist, stat)
-        _conv_running.set(True)
 
         all_rows = []
         for N in _N_GRID:
@@ -894,30 +899,6 @@ def boot_server(input, output, session, is_dark):
             all_rows.extend(rows)
 
         _conv_results.set(all_rows)
-        _conv_running.set(False)
-
-    # ── Status text ────────────────────────────────────────────────────
-
-    @render.ui
-    def boot_conv_status():
-        results = _conv_results()
-        if _conv_running():
-            return ui.div(
-                "Simulating… this may take a few seconds.",
-                class_="chart-placeholder",
-                style="padding:0.5rem 0; font-style:italic; opacity:0.7;",
-            )
-        if not results:
-            return ui.div()
-        # Summarise
-        methods = sorted(set(r["method"] for r in results))
-        ns = sorted(set(r["N"] for r in results))
-        return ui.div(
-            f"Completed: {len(methods)} methods \u00d7 {len(ns)} sample sizes "
-            f"\u00d7 {_CONV_K:,} experiments  "
-            f"(B\u2009=\u2009{_CONV_B})",
-            style="padding:0.25rem 0; opacity:0.7; font-size:0.85rem;",
-        )
 
     # ── Chart renderer ─────────────────────────────────────────────────
 

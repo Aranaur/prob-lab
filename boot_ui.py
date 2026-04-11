@@ -169,9 +169,7 @@ def boot_panel() -> ui.Tag:
 
             # ── RIGHT MAIN PANEL ─────────────────────────────────────────────
             ui.div(
-
-                ui.navset_tab(
-
+                ui.navset_underline(
                     # ── Tab A: Mechanics & Coverage ──────────────────────
                     ui.nav_panel(
                         "Mechanics & Coverage",
@@ -222,43 +220,54 @@ def boot_panel() -> ui.Tag:
                         "Convergence Analysis",
 
                         ui.div(
+                            # Info banner
                             ui.div(
-                                ui.div(
-                                    ui.tags.span(
-                                        "Reference test: ",
-                                        style="margin-right:0.5rem;",
-                                    ),
-                                    ui.output_ui("boot_conv_ref_ui"),
-                                    style=("display:flex; align-items:center; "
-                                           "gap:0.75rem; flex-wrap:wrap;"),
+                                ui.tags.span("\U0001f4ca\u00a0", class_="info-icon"),
+                                ui.HTML(
+                                    "<strong>What this shows:</strong> "
+                                    "For each sample size N, the simulation runs <em>1\u202f000 independent experiments</em> "
+                                    "and measures how often each CI method <em>fails to cover</em> the true parameter "
+                                    "(False Positive Rate). "
+                                    "A well-calibrated method should stay near the nominal \u03b1 line. "
+                                    "Shaded bands show \u00b11.96\u00d7SE of the FPR estimate across experiments."
+                                    "<br>"
+                                    "<strong>Sidebar controls that matter here:</strong> "
+                                    "\u2018Distribution\u2019 (shape of the data), "
+                                    "\u2018Statistic\u2019 (what we estimate), "
+                                    "\u2018CI Methods\u2019 (which intervals to compare), "
+                                    "and \u2018Conf. level\u2019 (\u03b1 reference line). "
+                                    "<em>Sample size (n) and B are fixed internally: "
+                                    "N \u2208 {5,\u200910,\u200920,\u200930,\u200950,\u2009100,\u2009200,\u2009500}, B\u2009=\u2009400.</em>"
                                 ),
-                                ui.input_action_button(
+                                class_="info-banner-text",
+                                style="margin-bottom:0.5rem; flex-shrink:0;",
+                            ),
+                            # Controls row
+                            ui.div(
+                                ui.output_ui("boot_conv_ref_ui"),
+                                ui.input_task_button(
                                     "boot_conv_run",
                                     "Run Convergence Simulation",
                                     class_="btn-ctrl btn-sample",
                                 ),
                                 style=("display:flex; justify-content:space-between; "
-                                       "align-items:center; padding:0.75rem 0; "
+                                       "align-items:flex-end; padding:0.5rem 0; "
                                        "flex-wrap:wrap; gap:0.5rem;"),
                             ),
-
-                            ui.output_ui("boot_conv_status"),
-
+                            # Chart
                             ui.div(
                                 ui.div("FPR vs SAMPLE SIZE",
                                        class_="card-title"),
                                 ui.output_ui("boot_conv_plot"),
                                 class_="glass-card chart-card",
-                                style="min-height:500px;",
+                                style="min-height:460px;",
                             ),
 
-                            style="padding-top:0.5rem;",
+                            style="display:flex; flex-direction:column; height:100%;",
                         ),
                     ),
-
                     id="boot_main_tabs",
                 ),
-
                 class_="main-panel",
             ),
 

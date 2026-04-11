@@ -35,7 +35,7 @@
 ## Фаза 3 — Multiple Testing & A/B Testing Блок
 *(Модулі високого рівня, найбільш затребувані і цікаві для продуктових та дата-аналітиків)*
 
-- [ ] **Multiple Testing Explorer (False Positives Base)**
+- [x] **Multiple Testing Explorer (False Positives Base)**
   - **Garden of forking paths**: симуляція тестування 20+ змінних і гарантоване отримання хибнопозитивних результатів.
   - Вплив поправок: порівняння суворості Bonferroni, Holm, BH (FDR).
 - [ ] **Peeking & Sequential Testing Explorer**

@@ -210,7 +210,7 @@ def seq_panel() -> ui.Tag:
                     ),
                     ui.div(
                         ui.div(
-                            "EXPERIMENTS\u00a0",
+                            "TOTAL EXPERIMENTS\u00a0",
                             tip("Total simulated experiments."),
                             class_="stat-label",
                         ),

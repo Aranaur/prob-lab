@@ -69,7 +69,7 @@ def server(input, output, session):
     # ── Dynamic statistic dropdown (adds Proportion for Binomial) ────────────
     @render.ui
     def ci_statistic_ui():
-        dist = input.pop_dist()
+        dist = input.ci_pop_dist()
         choices = {
             "mean":       "Mean",
             "median":     "Median",
@@ -123,9 +123,9 @@ def server(input, output, session):
 
     # ── Reset ci_statistic to "mean" when switching away from Binomial ────────
     @reactive.effect
-    @reactive.event(input.pop_dist)
+    @reactive.event(input.ci_pop_dist)
     def _sync_statistic_on_dist_change():
-        if input.pop_dist() != "binomial":
+        if input.ci_pop_dist() != "binomial":
             try:
                 if input.ci_statistic() == "proportion":
                     ui.update_select("ci_statistic", selected="mean")
@@ -146,8 +146,8 @@ def server(input, output, session):
 
     # ── Dynamic Parameters UI ──────────────────────────────────────────────
     @render.ui
-    def dynamic_params():
-        dist = input.pop_dist()
+    def ci_dynamic_params():
+        dist = input.ci_pop_dist()
         
         n_col = ui.div(
             ui.input_numeric("sample_size",
@@ -207,19 +207,19 @@ def server(input, output, session):
     @reactive.calc
     def true_params():
         """Return (mu, sigma, true_median, true_variance) for the current distribution."""
-        dist = input.pop_dist()
+        dist = input.ci_pop_dist()
         if dist == "normal":
             try:
-                mu = float(input.pop_mean() or 0.0)
-                sigma = float(input.pop_sd() or 1.0)
+                mu = float(input.ci_pop_mean() or 0.0)
+                sigma = float(input.ci_pop_sd() or 1.0)
             except Exception:
                 mu, sigma = 0.0, 1.0
             median = mu
             variance = sigma ** 2
         elif dist == "uniform":
             try:
-                a = float(input.pop_min() or 0.0)
-                b = float(input.pop_max() or 1.0)
+                a = float(input.ci_pop_min() or 0.0)
+                b = float(input.ci_pop_max() or 1.0)
                 if a > b: a, b = b, a
             except Exception:
                 a, b = 0.0, 1.0
@@ -229,7 +229,7 @@ def server(input, output, session):
             variance = sigma ** 2
         elif dist == "exponential":
             try:
-                lam = float(input.pop_lambda() or 1.0)
+                lam = float(input.ci_pop_lambda() or 1.0)
             except Exception:
                 lam = 1.0
             if lam <= 0: lam = 1e-6
@@ -239,8 +239,8 @@ def server(input, output, session):
             variance = sigma ** 2
         elif dist == "lognormal":
             try:
-                lnmu = float(input.lnorm_mu() or 0.0)
-                lnsg = float(input.lnorm_sigma() or 0.5)
+                lnmu = float(input.ci_lnorm_mu() or 0.0)
+                lnsg = float(input.ci_lnorm_sigma() or 0.5)
                 if lnsg <= 0: lnsg = 0.1
             except Exception:
                 lnmu, lnsg = 0.0, 0.5
@@ -250,7 +250,7 @@ def server(input, output, session):
             variance = sigma ** 2
         elif dist == "poisson":
             try:
-                lam = float(input.pois_lam() or 3.0)
+                lam = float(input.ci_pois_lam() or 3.0)
                 if lam <= 0: lam = 0.1
             except Exception:
                 lam = 3.0
@@ -260,8 +260,8 @@ def server(input, output, session):
             variance = lam
         elif dist == "binomial":
             try:
-                m = int(input.binom_n() or 10)
-                p = float(input.binom_p() or 0.5)
+                m = int(input.ci_binom_n() or 10)
+                p = float(input.ci_binom_p() or 0.5)
                 m = max(1, m)
                 p = max(0.001, min(0.999, p))
             except Exception:
@@ -286,7 +286,7 @@ def server(input, output, session):
         stat = input.ci_statistic()
         if stat == "proportion":
             try:
-                p = float(input.binom_p() or 0.5)
+                p = float(input.ci_binom_p() or 0.5)
                 return max(0.001, min(0.999, p))
             except Exception:
                 return 0.5
@@ -299,38 +299,38 @@ def server(input, output, session):
                 p = (input.ci_percentile_level() or 25) / 100.0
             except Exception:
                 p = 0.25
-            dist = input.pop_dist()
+            dist = input.ci_pop_dist()
             # Use scipy ppf for the exact population percentile
             if dist == "normal":
-                try: mu_ = float(input.pop_mean() or 0.0); sg_ = float(input.pop_sd() or 1.0)
+                try: mu_ = float(input.ci_pop_mean() or 0.0); sg_ = float(input.ci_pop_sd() or 1.0)
                 except Exception: mu_, sg_ = 0.0, 1.0
                 return float(stats.norm.ppf(p, mu_, sg_))
             elif dist == "uniform":
                 try:
-                    a_ = float(input.pop_min() or 0.0); b_ = float(input.pop_max() or 1.0)
+                    a_ = float(input.ci_pop_min() or 0.0); b_ = float(input.ci_pop_max() or 1.0)
                     if a_ > b_: a_, b_ = b_, a_
                 except Exception: a_, b_ = 0.0, 1.0
                 return float(stats.uniform.ppf(p, a_, b_ - a_))
             elif dist == "exponential":
-                try: lam_ = float(input.pop_lambda() or 1.0)
+                try: lam_ = float(input.ci_pop_lambda() or 1.0)
                 except Exception: lam_ = 1.0
                 if lam_ <= 0: lam_ = 1e-6
                 return float(stats.expon.ppf(p, scale=1.0 / lam_))
             elif dist == "lognormal":
                 try:
-                    lnmu_ = float(input.lnorm_mu() or 0.0)
-                    lnsg_ = float(input.lnorm_sigma() or 0.5)
+                    lnmu_ = float(input.ci_lnorm_mu() or 0.0)
+                    lnsg_ = float(input.ci_lnorm_sigma() or 0.5)
                     if lnsg_ <= 0: lnsg_ = 0.1
                 except Exception: lnmu_, lnsg_ = 0.0, 0.5
                 return float(stats.lognorm.ppf(p, s=lnsg_, scale=float(np.exp(lnmu_))))
             elif dist == "poisson":
-                try: lam_ = float(input.pois_lam() or 3.0)
+                try: lam_ = float(input.ci_pois_lam() or 3.0)
                 except Exception: lam_ = 3.0
                 if lam_ <= 0: lam_ = 0.1
                 return float(stats.poisson.ppf(p, lam_))
             elif dist == "binomial":
                 try:
-                    m_ = int(input.binom_n() or 10); p_ = float(input.binom_p() or 0.5)
+                    m_ = int(input.ci_binom_n() or 10); p_ = float(input.ci_binom_p() or 0.5)
                     m_ = max(1, m_); p_ = max(0.001, min(0.999, p_))
                 except Exception: m_, p_ = 10, 0.5
                 return float(stats.binom.ppf(p, m_, p_))
@@ -339,40 +339,40 @@ def server(input, output, session):
 
     # ── Sample size +/- ────────────────────────────────────────────────────
     @reactive.effect
-    @reactive.event(input.n_minus)
+    @reactive.event(input.ci_n_minus)
     def _n_minus():
-        cur = input.sample_size()
+        cur = input.ci_sample_size()
         if cur is not None and cur > 2:
-            ui.update_numeric("sample_size", value=cur - 1)
+            ui.update_numeric("ci_sample_size", value=cur - 1)
 
     @reactive.effect
-    @reactive.event(input.n_plus)
+    @reactive.event(input.ci_n_plus)
     def _n_plus():
-        cur = input.sample_size()
+        cur = input.ci_sample_size()
         if cur is not None and cur < 500:
-            ui.update_numeric("sample_size", value=cur + 1)
+            ui.update_numeric("ci_sample_size", value=cur + 1)
 
     # ── Speed +/- ────────────────────────────────────────────────────────
     @reactive.effect
-    @reactive.event(input.speed_minus)
+    @reactive.event(input.ci_speed_minus)
     def _speed_down():
         speed_ms.set(min(speed_ms() + 0.05, 1.0))
 
     @reactive.effect
-    @reactive.event(input.speed_plus)
+    @reactive.event(input.ci_speed_plus)
     def _speed_up():
         speed_ms.set(max(speed_ms() - 0.05, 0.05))
 
     # ── Play / Pause ──────────────────────────────────────────────────────
     @reactive.effect
-    @reactive.event(input.btn_play)
+    @reactive.event(input.ci_btn_play)
     def _toggle_play():
         is_playing.set(not is_playing())
         playing = is_playing()
         if playing:
-            ui.update_action_button("btn_play", label="Pause")
+            ui.update_action_button("ci_btn_play", label="Pause")
         else:
-            ui.update_action_button("btn_play", label="Play")
+            ui.update_action_button("ci_btn_play", label="Play")
 
     # ── Continuous animation ──────────────────────────────────────────────
     @reactive.effect
@@ -384,23 +384,23 @@ def server(input, output, session):
 
     # ── Manual buttons ────────────────────────────────────────────────────
     @reactive.effect
-    @reactive.event(input.btn_sample_1)
+    @reactive.event(input.ci_btn_sample_1)
     def _sample_1():
         draw_samples(1)
 
     @reactive.effect
-    @reactive.event(input.btn_sample_50)
+    @reactive.event(input.ci_btn_sample_50)
     def _sample_50():
         draw_samples(50)
 
     @reactive.effect
-    @reactive.event(input.btn_sample_100)
+    @reactive.event(input.ci_btn_sample_100)
     def _sample_100():
         draw_samples(100)
 
     # ── Reset ─────────────────────────────────────────────────────────────
     @reactive.effect
-    @reactive.event(input.btn_reset, input.pop_dist, input.ci_method, input.ci_statistic)
+    @reactive.event(input.ci_btn_reset, input.ci_pop_dist, input.ci_method, input.ci_statistic)
     def _reset():
         total_drawn.set(0)
         total_covered.set(0)
@@ -411,7 +411,7 @@ def server(input, output, session):
         prop_y.set(deque(maxlen=MAX_DATA))
         last_sample.set([])
         is_playing.set(False)
-        ui.update_action_button("btn_play", label="Play")
+        ui.update_action_button("ci_btn_play", label="Play")
 
     # Reset when percentile level changes (conditional input — needs try/except)
     @reactive.effect
@@ -430,15 +430,15 @@ def server(input, output, session):
             prop_y.set(deque(maxlen=MAX_DATA))
             last_sample.set([])
             is_playing.set(False)
-            ui.update_action_button("btn_play", label="Play")
+            ui.update_action_button("ci_btn_play", label="Play")
 
     # ── Core sampling logic ───────────────────────────────────────────────
     def draw_samples(k: int):
-        n = input.sample_size()
+        n = input.ci_sample_size()
         if n is None or n < 2:
             n = 5
         n = int(n)
-        conf = input.conf_level() / 100.0
+        conf = input.ci_conf_level() / 100.0
 
         current_drawn = total_drawn()
         current_covered = total_covered()
@@ -446,43 +446,43 @@ def server(input, output, session):
         mu, sigma, *_ = true_params()
 
         # Vectorized data generation: shape (n, k)
-        dist_choice = input.pop_dist()
+        dist_choice = input.ci_pop_dist()
         if dist_choice == "normal":
             samps = np.random.normal(mu, sigma, size=(n, k))
         elif dist_choice == "uniform":
             try:
-                a = float(input.pop_min() or 0.0)
-                b = float(input.pop_max() or 1.0)
+                a = float(input.ci_pop_min() or 0.0)
+                b = float(input.ci_pop_max() or 1.0)
                 if a > b: a, b = b, a
             except Exception:
                 a, b = 0.0, 1.0
             samps = np.random.uniform(a, b, size=(n, k))
         elif dist_choice == "exponential":
             try:
-                lam = float(input.pop_lambda() or 1.0)
+                lam = float(input.ci_pop_lambda() or 1.0)
             except Exception:
                 lam = 1.0
             if lam <= 0: lam = 1e-6
             samps = np.random.exponential(1.0 / lam, size=(n, k))
         elif dist_choice == "lognormal":
             try:
-                lnmu = float(input.lnorm_mu() or 0.0)
-                lnsg = float(input.lnorm_sigma() or 0.5)
+                lnmu = float(input.ci_lnorm_mu() or 0.0)
+                lnsg = float(input.ci_lnorm_sigma() or 0.5)
                 if lnsg <= 0: lnsg = 0.1
             except Exception:
                 lnmu, lnsg = 0.0, 0.5
             samps = np.random.lognormal(lnmu, lnsg, size=(n, k))
         elif dist_choice == "poisson":
             try:
-                lam = float(input.pois_lam() or 3.0)
+                lam = float(input.ci_pois_lam() or 3.0)
                 if lam <= 0: lam = 0.1
             except Exception:
                 lam = 3.0
             samps = np.random.poisson(lam, size=(n, k)).astype(float)
         elif dist_choice == "binomial":
             try:
-                m = int(input.binom_n() or 10)
-                p = float(input.binom_p() or 0.5)
+                m = int(input.ci_binom_n() or 10)
+                p = float(input.ci_binom_p() or 0.5)
                 m = max(1, m)
                 p = max(0.001, min(0.999, p))
             except Exception:
@@ -502,7 +502,7 @@ def server(input, output, session):
 
         # Binomial m parameter (needed for proportion)
         try:
-            binom_m = max(1, int(input.binom_n() or 10))
+            binom_m = max(1, int(input.ci_binom_n() or 10))
         except Exception:
             binom_m = 10
 
@@ -626,39 +626,39 @@ def server(input, output, session):
 
     # ── Text outputs ──────────────────────────────────────────────────────
     @render.text
-    def conf_pct():
-        return f"{input.conf_level()}%"
+    def ci_conf_pct():
+        return f"{input.ci_conf_level()}%"
 
     @render.text
-    def conf_pct2():
-        return f"{input.conf_level()}%"
+    def ci_conf_pct2():
+        return f"{input.ci_conf_level()}%"
 
     @render.text
-    def conf_pct3():
-        return f"{input.conf_level()}%"
+    def ci_conf_pct3():
+        return f"{input.ci_conf_level()}%"
 
     @render.text
-    def cov_rate():
+    def ci_cov_rate():
         td = total_drawn()
         if td == 0:
             return "\u2014"
         return f"{100 * total_covered() / td:.1f}%"
 
     @render.text
-    def num_covered():
+    def ci_num_covered():
         return f"{total_covered():,}"
 
     @render.text
-    def num_missed():
+    def ci_num_missed():
         return f"{total_drawn() - total_covered():,}"
 
     @render.text
-    def num_total():
+    def ci_num_total():
         return f"{total_drawn():,}"
 
     # ── Dynamic labels ───────────────────────────────────────────────────
     @render.text
-    def stat_label_inc():
+    def ci_stat_label_inc():
         s = input.ci_statistic()
         if s == "percentile":
             try: p = int(input.ci_percentile_level() or 25)
@@ -669,7 +669,7 @@ def server(input, output, session):
                 "proportion": "p INCLUDED"}.get(s, "\u03bc INCLUDED")
 
     @render.text
-    def stat_label_miss():
+    def ci_stat_label_miss():
         s = input.ci_statistic()
         if s == "percentile":
             try: p = int(input.ci_percentile_level() or 25)
@@ -680,7 +680,7 @@ def server(input, output, session):
                 "proportion": "p MISSED"}.get(s, "\u03bc MISSED")
 
     @render.text
-    def stat_plot_title():
+    def ci_stat_plot_title():
         s = input.ci_statistic()
         if s == "percentile":
             try: p = int(input.ci_percentile_level() or 25)
@@ -692,7 +692,7 @@ def server(input, output, session):
                 "proportion": "SAMPLE PROPORTIONS DISTRIBUTION (CLT)"}.get(s, "SAMPLE STATISTICS DISTRIBUTION")
 
     @render.text
-    def prop_plot_title():
+    def ci_prop_plot_title():
         s = input.ci_statistic()
         if s == "proportion":
             return "PROPORTION OF CIs INCLUDING p"
@@ -701,7 +701,7 @@ def server(input, output, session):
     # ── Chart renderers (Plotly → HTML) ──────────────────────────────────
     @render.ui
     def ci_plot():
-        n = input.sample_size()
+        n = input.ci_sample_size()
         if n is None or n < 2:
             n = 5
         mu, sigma, *_ = true_params()
@@ -714,19 +714,19 @@ def server(input, output, session):
         return _fig_to_ui(fig)
 
     @render.ui
-    def prop_plot():
+    def ci_prop_plot():
         fig = draw_prop_plot(list(prop_x()), list(prop_y()),
-                             input.conf_level() / 100.0, dark=is_dark())
+                             input.ci_conf_level() / 100.0, dark=is_dark())
         return _fig_to_ui(fig)
 
     @render.ui
-    def width_plot():
+    def ci_width_plot():
         fig = draw_width_plot(list(all_widths()), dark=is_dark())
         return _fig_to_ui(fig)
 
     @render.ui
-    def means_plot():
-        n = input.sample_size()
+    def ci_means_plot():
+        n = input.ci_sample_size()
         if n is None or n < 2:
             n = 5
         n = int(n)
@@ -737,7 +737,7 @@ def server(input, output, session):
         except Exception: p_level = 25
         # For proportion: sigma=sqrt(p(1-p)), n=n_eff → SE = sqrt(p(1-p)/n_eff)
         if stat == "proportion":
-            try: binom_m = max(1, int(input.binom_n() or 10))
+            try: binom_m = max(1, int(input.ci_binom_n() or 10))
             except Exception: binom_m = 10
             sigma_plot = float(np.sqrt(tv * (1 - tv)))
             n_plot = n * binom_m
@@ -748,8 +748,8 @@ def server(input, output, session):
         return _fig_to_ui(fig)
 
     @render.ui
-    def population_plot():
-        dist = input.pop_dist()
+    def ci_population_plot():
+        dist = input.ci_pop_dist()
         stat = input.ci_statistic()
         try: p_level = int(input.ci_percentile_level() or 25)
         except Exception: p_level = 25
@@ -758,23 +758,23 @@ def server(input, output, session):
         # Build distribution params dict for the plot function
         try:
             if dist == "normal":
-                params = {"mu": float(input.pop_mean() or 0.0),
-                          "sigma": float(input.pop_sd() or 1.0)}
+                params = {"mu": float(input.ci_pop_mean() or 0.0),
+                          "sigma": float(input.ci_pop_sd() or 1.0)}
             elif dist == "uniform":
-                a_ = float(input.pop_min() or 0.0)
-                b_ = float(input.pop_max() or 1.0)
+                a_ = float(input.ci_pop_min() or 0.0)
+                b_ = float(input.ci_pop_max() or 1.0)
                 if a_ > b_: a_, b_ = b_, a_
                 params = {"a": a_, "b": b_}
             elif dist == "exponential":
-                params = {"lam": float(input.pop_lambda() or 1.0)}
+                params = {"lam": float(input.ci_pop_lambda() or 1.0)}
             elif dist == "lognormal":
-                params = {"lnmu": float(input.lnorm_mu() or 0.0),
-                          "lnsg": float(input.lnorm_sigma() or 0.5)}
+                params = {"lnmu": float(input.ci_lnorm_mu() or 0.0),
+                          "lnsg": float(input.ci_lnorm_sigma() or 0.5)}
             elif dist == "poisson":
-                params = {"lam": float(input.pois_lam() or 3.0)}
+                params = {"lam": float(input.ci_pois_lam() or 3.0)}
             elif dist == "binomial":
-                params = {"m": int(input.binom_n() or 10),
-                          "p": float(input.binom_p() or 0.5)}
+                params = {"m": int(input.ci_binom_n() or 10),
+                          "p": float(input.ci_binom_p() or 0.5)}
             else:
                 params = {}
         except Exception:

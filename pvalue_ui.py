@@ -236,7 +236,7 @@ def pvalue_panel() -> ui.Tag:
                     ui.output_ui("pv_reject_stat_card"),
                     ui.div(
                         ui.div(
-                            "TOTAL TESTS\u00a0",
+                            "TOTAL TOTAL EXPERIMENTS\u00a0",
                             tip("Total number of hypothesis tests simulated."),
                             class_="stat-label",
                         ),

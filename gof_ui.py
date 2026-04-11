@@ -121,7 +121,7 @@ def gof_panel() -> ui.Tag:
                     ),
                     ui.div(
                         ui.div(
-                            "REJECT RATE ",
+                            "REJECT RATE\u00a0",
                             tip("Fraction of tests where H\u2080 was rejected at \u03b1."),
                             class_="stat-label",
                         ),
@@ -130,7 +130,7 @@ def gof_panel() -> ui.Tag:
                     ),
                     ui.div(
                         ui.div(
-                            "TOTAL TESTS ",
+                            "TOTAL TOTAL EXPERIMENTS\u00a0",
                             tip("Total number of goodness-of-fit tests performed."),
                             class_="stat-label",
                         ),

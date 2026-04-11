@@ -126,7 +126,7 @@ def power_panel() -> ui.Tag:
                 ui.div(
                     ui.div(
                         ui.div(
-                            "EFFECT SIZE (d) ",
+                            "EFFECT SIZE (d)\u00a0",
                             tip("Cohen\u2019s d: the standardised distance between H\u2080 and H\u2081."),
                             class_="stat-label",
                         ),
@@ -135,7 +135,7 @@ def power_panel() -> ui.Tag:
                     ),
                     ui.div(
                         ui.div(
-                            "SAMPLE SIZE (n) ",
+                            "SAMPLE SIZE (n)\u00a0",
                             tip("Number of observations per group."),
                             class_="stat-label",
                         ),
@@ -144,7 +144,7 @@ def power_panel() -> ui.Tag:
                     ),
                     ui.div(
                         ui.div(
-                            "\u03b1 (TYPE I) ",
+                            "\u03b1 (TYPE I)\u00a0",
                             tip("Probability of rejecting H\u2080 when it is true."),
                             class_="stat-label",
                         ),
@@ -153,7 +153,7 @@ def power_panel() -> ui.Tag:
                     ),
                     ui.div(
                         ui.div(
-                            "POWER (1\u2212\u03b2) ",
+                            "POWER (1\u2212\u03b2)\u00a0",
                             tip("Probability of rejecting H\u2080 when H\u2081 is true."),
                             class_="stat-label",
                         ),

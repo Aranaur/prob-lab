@@ -24,7 +24,7 @@ app_ui = ui.page_fluid(
     # JS helpers — play/pause button class + dark/light theme toggle
     ui.tags.head(ui.tags.script("""
         Shiny.addCustomMessageHandler('togglePlayClass', function(msg) {
-            var btn = document.getElementById('btn_play');
+            var btn = document.getElementById('ci_btn_play');
             if (msg.playing) {
                 btn.classList.remove('btn-play');
                 btn.classList.add('btn-pause');
@@ -59,28 +59,28 @@ app_ui = ui.page_fluid(
                     ui.div(
                         ui.tags.i(class_="info-icon"),
                         ui.tags.strong(" Common Misconception: "),
-                        "A ", ui.output_text("conf_pct", inline=True),
+                        "A ", ui.output_text("ci_conf_pct", inline=True),
                         " CI does NOT mean a ",
-                        ui.output_text("conf_pct2", inline=True),
+                        ui.output_text("ci_conf_pct2", inline=True),
                         " probability the true parameter lies within it.",
                         ui.tags.br(),
                         ui.tags.strong("Reality: "),
                         "If we repeat sampling many times, ",
-                        ui.output_text("conf_pct3", inline=True),
+                        ui.output_text("ci_conf_pct3", inline=True),
                         " of intervals will contain the true parameter.",
                         class_="info-banner-text",
                     ),
 
                     # Confidence level slider
                     ui.input_slider(
-                        "conf_level",
+                        "ci_conf_level",
                         ui.TagList("Confidence Level (%)", tip("The probability that the interval estimation procedure will produce an interval containing the true parameter.")),
                         min=50, max=99, value=95, step=1, width="100%",
                     ),
 
                     # Distribution selector
                     ui.input_select(
-                        "pop_dist",
+                        "ci_pop_dist",
                         ui.TagList("Population Distribution", tip("The theoretical probability distribution from which random samples are drawn.")),
                         choices={
                             "normal":      "Normal",
@@ -94,7 +94,7 @@ app_ui = ui.page_fluid(
                     ),
 
                     # Dynamic distribution parameters
-                    ui.output_ui("dynamic_params"),
+                    ui.output_ui("ci_dynamic_params"),
 
                     # Statistic selector (dynamic — adds Proportion for Binomial)
                     ui.output_ui("ci_statistic_ui"),
@@ -126,25 +126,25 @@ app_ui = ui.page_fluid(
                         # Row 1: label + 3 equal sample buttons
                         ui.div(
                             ui.tags.span("Sample:", class_="btn-row-label"),
-                            ui.input_action_button("btn_sample_1",   "\u00d71",   class_="btn-ctrl btn-sample btn-flex"),
-                            ui.input_action_button("btn_sample_50",  "\u00d750",  class_="btn-ctrl btn-sample btn-flex"),
-                            ui.input_action_button("btn_sample_100", "\u00d7100", class_="btn-ctrl btn-sample btn-flex"),
+                            ui.input_action_button("ci_btn_sample_1",   "\u00d71",   class_="btn-ctrl btn-sample btn-flex"),
+                            ui.input_action_button("ci_btn_sample_50",  "\u00d750",  class_="btn-ctrl btn-sample btn-flex"),
+                            ui.input_action_button("ci_btn_sample_100", "\u00d7100", class_="btn-ctrl btn-sample btn-flex"),
                             class_="sidebar-btn-row",
                         ),
                         # Row 3: speed + play
                         ui.div(
                             ui.div(
                                 ui.tags.label("Speed"),
-                                ui.input_action_button("speed_minus", "\u2212", class_="btn-ctrl btn-pm"),
-                                ui.input_action_button("btn_play", "Play", class_="btn-ctrl btn-play btn-flex"),
-                                ui.input_action_button("speed_plus", "+", class_="btn-ctrl btn-pm"),
+                                ui.input_action_button("ci_speed_minus", "\u2212", class_="btn-ctrl btn-pm"),
+                                ui.input_action_button("ci_btn_play", "Play", class_="btn-ctrl btn-play btn-flex"),
+                                ui.input_action_button("ci_speed_plus", "+", class_="btn-ctrl btn-pm"),
                                 class_="ctrl-group ctrl-group-full",
                             ),
                             class_="sidebar-btn-row",
                         ),
                         # Row 4: reset
                         ui.div(
-                            ui.input_action_button("btn_reset", "Reset", class_="btn-ctrl btn-reset btn-full"),
+                            ui.input_action_button("ci_btn_reset", "Reset", class_="btn-ctrl btn-reset btn-full"),
                             class_="sidebar-btn-row",
                         ),
                         class_="sidebar-controls",
@@ -169,31 +169,31 @@ app_ui = ui.page_fluid(
                     # Stats row
                     ui.div(
                         ui.div(
-                            ui.div("CI COVERAGE ", tip("Percentage of all generated CIs that contain the true \u03bc."), class_="stat-label"),
-                            ui.div(ui.output_text("cov_rate", inline=True), class_="stat-value coverage"),
+                            ui.div("CI COVERAGE\u00a0", tip("Percentage of all generated CIs that contain the true \u03bc."), class_="stat-label"),
+                            ui.div(ui.output_text("ci_cov_rate", inline=True), class_="stat-value coverage"),
                             class_="stat-card",
                         ),
                         ui.div(
                             ui.div(
-                                ui.output_text("stat_label_inc", inline=True), " ",
+                                ui.output_text("ci_stat_label_inc", inline=True), " ",
                                 tip("Count of intervals where the true parameter falls inside the CI."),
                                 class_="stat-label",
                             ),
-                            ui.div(ui.output_text("num_covered", inline=True), class_="stat-value included"),
+                            ui.div(ui.output_text("ci_num_covered", inline=True), class_="stat-value included"),
                             class_="stat-card",
                         ),
                         ui.div(
                             ui.div(
-                                ui.output_text("stat_label_miss", inline=True), " ",
+                                ui.output_text("ci_stat_label_miss", inline=True), " ",
                                 tip("Count of intervals where the true parameter falls outside the CI."),
                                 class_="stat-label",
                             ),
-                            ui.div(ui.output_text("num_missed", inline=True), class_="stat-value missed"),
+                            ui.div(ui.output_text("ci_num_missed", inline=True), class_="stat-value missed"),
                             class_="stat-card",
                         ),
                         ui.div(
-                            ui.div("SAMPLES DRAWN ", tip("Total number of random samples generated so far."), class_="stat-label"),
-                            ui.div(ui.output_text("num_total", inline=True), class_="stat-value total"),
+                            ui.div("TOTAL EXPERIMENTS\u00a0", tip("Total number of random samples generated so far."), class_="stat-label"),
+                            ui.div(ui.output_text("ci_num_total", inline=True), class_="stat-value total"),
                             class_="stat-card",
                         ),
                         class_="stats-row",
@@ -204,18 +204,18 @@ app_ui = ui.page_fluid(
                         # Left column: 3 small charts (CLT on top)
                         ui.div(
                             ui.div(
-                                ui.div(ui.output_text("stat_plot_title", inline=True), class_="card-title"),
-                                ui.output_ui("means_plot"),
+                                ui.div(ui.output_text("ci_stat_plot_title", inline=True), class_="card-title"),
+                                ui.output_ui("ci_means_plot"),
                                 class_="glass-card chart-card",
                             ),
                             ui.div(
-                                ui.div(ui.output_text("prop_plot_title", inline=True), class_="card-title"),
-                                ui.output_ui("prop_plot"),
+                                ui.div(ui.output_text("ci_prop_plot_title", inline=True), class_="card-title"),
+                                ui.output_ui("ci_prop_plot"),
                                 class_="glass-card chart-card",
                             ),
                             ui.div(
                                 ui.div("CI WIDTH DISTRIBUTION", class_="card-title"),
-                                ui.output_ui("width_plot"),
+                                ui.output_ui("ci_width_plot"),
                                 class_="glass-card chart-card",
                             ),
                             class_="charts-col-left",
@@ -224,7 +224,7 @@ app_ui = ui.page_fluid(
                         ui.div(
                             ui.div(
                                 ui.div("POPULATION DISTRIBUTION", class_="card-title"),
-                                ui.output_ui("population_plot"),
+                                ui.output_ui("ci_population_plot"),
                                 class_="glass-card chart-card chart-card-pop",
                             ),
                             ui.div(

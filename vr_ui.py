@@ -162,7 +162,7 @@ def vr_panel() -> ui.Tag:
                     # Right column: tall p-value histogram
                     ui.div(
                         ui.div(
-                            ui.div("p-VALUE HISTOGRAM", class_="card-title"),
+                            ui.div("p-VALUE DISTRIBUTION", class_="card-title"),
                             ui.output_ui("vr_pvalue_plot"),
                             class_="glass-card chart-card",
                         ),

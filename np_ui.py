@@ -180,7 +180,7 @@ def np_panel() -> ui.Tag:
                     ),
                     ui.div(
                         ui.div(
-                            "TOTAL TESTS\u00a0",
+                            "TOTAL TOTAL EXPERIMENTS\u00a0",
                             tip("Total number of simulated experiments."),
                             class_="stat-label",
                         ),
@@ -215,7 +215,7 @@ def np_panel() -> ui.Tag:
                             class_="glass-card chart-card",
                         ),
                         ui.div(
-                            ui.div("REJECT RATE COMPARISON", class_="card-title"),
+                            ui.div("REJECT RATE\u00a0COMPARISON", class_="card-title"),
                             ui.output_ui("np_reject_plot"),
                             class_="glass-card chart-card",
                         ),

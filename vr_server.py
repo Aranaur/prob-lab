@@ -457,7 +457,7 @@ def vr_server(input, output, session, is_dark):
                            tip(f"MDE\u00d7\u221a(1\u2212\u03c1\u00b2).  "
                                f"Equivalent to {n_eq:.0f} obs/group."),
                            f"{mde_c:.3f}", "included"),
-                _stat_card("EXPERIMENTS\u00a0",
+                _stat_card("TOTAL EXPERIMENTS\u00a0",
                            tip("Total simulated experiments."),
                            f"{tot:,}", "total"),
                 class_="stats-row",
@@ -497,7 +497,7 @@ def vr_server(input, output, session, is_dark):
                 _stat_card("VWE REJECT\u00a0",
                            tip("Empirical reject rate (VWE)."),
                            rej_m, "coverage"),
-                _stat_card("EXPERIMENTS\u00a0",
+                _stat_card("TOTAL EXPERIMENTS\u00a0",
                            tip("Total simulated experiments."),
                            f"{tot:,}", "total"),
                 class_="stats-row",

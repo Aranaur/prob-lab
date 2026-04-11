@@ -1,0 +1,267 @@
+# =============================================================================
+# Bootstrap Explorer — Plotly chart helpers
+# =============================================================================
+
+import numpy as np
+import plotly.graph_objects as go
+
+# ── colour tokens ──────────────────────────────────────────────────────────────
+_C_ORIG   = "#94a3b8"   # slate — original sample
+_C_RESAMP = "#38bdf8"   # cyan  — resampled highlights
+_C_THETA  = "#fbbf24"   # gold  — θ̂ original
+_C_TRUE   = "#34d399"   # green — true θ
+_C_HIST   = "#64748b"   # gray  — histogram fill
+
+_CI_COLORS = {
+    "Percentile":  "#38bdf8",
+    "Normal":      "#f97316",
+    "Basic":       "#a78bfa",
+    "Studentized": "#f87171",
+    "BCa":         "#34d399",
+}
+
+_DARK_BG    = "#0f172a"
+_DARK_PAPER = "rgba(30,41,59,0.60)"
+_DARK_GRID  = "rgba(148,163,184,0.08)"
+_DARK_TEXT  = "#cbd5e1"
+
+_LIGHT_BG    = "#ffffff"
+_LIGHT_PAPER = "rgba(241,245,249,0.85)"
+_LIGHT_GRID  = "rgba(100,116,139,0.10)"
+_LIGHT_TEXT  = "#334155"
+
+
+def _base_fig(dark: bool = True) -> go.Figure:
+    bg    = _DARK_BG    if dark else _LIGHT_BG
+    paper = _DARK_PAPER if dark else _LIGHT_PAPER
+    grid  = _DARK_GRID  if dark else _LIGHT_GRID
+    txt   = _DARK_TEXT  if dark else _LIGHT_TEXT
+    fig = go.Figure()
+    fig.update_layout(
+        paper_bgcolor=paper, plot_bgcolor=bg,
+        font=dict(color=txt, size=11),
+        margin=dict(l=48, r=16, t=10, b=40),
+        xaxis=dict(gridcolor=grid, zerolinecolor=grid),
+        yaxis=dict(gridcolor=grid, zerolinecolor=grid),
+        legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(size=10)),
+    )
+    return fig
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 1. Original sample + resample encoding
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def draw_boot_sample(sample, counts, theta_hat, true_theta, dark=True):
+    """Scatter of original sample with resample-count size/colour encoding."""
+    fig = _base_fig(dark)
+    n = len(sample)
+    xs = np.arange(1, n + 1)
+
+    # Base layer (all points, faint)
+    fig.add_trace(go.Scatter(
+        x=xs, y=sample, mode="markers",
+        marker=dict(color=_C_ORIG, size=6, opacity=0.3),
+        name="Original", showlegend=True,
+    ))
+
+    # Resample overlay
+    if counts is not None:
+        mask = counts > 0
+        if mask.any():
+            sizes = 6 + counts[mask] * 4
+            fig.add_trace(go.Scatter(
+                x=xs[mask], y=sample[mask], mode="markers",
+                marker=dict(
+                    color=counts[mask],
+                    colorscale=[[0, _C_ORIG], [1, _C_RESAMP]],
+                    cmin=0, cmax=max(3, int(counts.max())),
+                    size=sizes, opacity=0.8, line=dict(width=0),
+                ),
+                name="Resampled",
+                text=[f"count={c}" for c in counts[mask]],
+                hoverinfo="text+y",
+            ))
+
+    # θ̂ and true θ reference lines
+    fig.add_hline(y=theta_hat,
+                  line=dict(color=_C_THETA, width=1.5, dash="dash"),
+                  annotation_text=f"\u03b8\u0302={theta_hat:.3f}",
+                  annotation_position="top right")
+    if true_theta is not None:
+        fig.add_hline(y=true_theta,
+                      line=dict(color=_C_TRUE, width=1, dash="dot"),
+                      annotation_text=f"\u03b8={true_theta:.3f}",
+                      annotation_position="bottom right")
+
+    fig.update_layout(
+        xaxis_title="Observation index", yaxis_title="Value",
+        showlegend=True,
+        legend=dict(x=0.01, y=0.99, xanchor="left", yanchor="top"),
+    )
+    return fig
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 2. Bootstrap distribution histogram
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def draw_boot_distribution(boot_stats, theta_hat, true_theta, cis,
+                           bias, se_boot, bca_z0, bca_a, dark=True):
+    """Histogram of θ̂* with CI boundary lines, bias / SE annotations."""
+    fig = _base_fig(dark)
+    ann_col = _DARK_TEXT if dark else _LIGHT_TEXT
+
+    if len(boot_stats) > 0:
+        fig.add_trace(go.Histogram(
+            x=boot_stats, nbinsx=50,
+            marker_color=_C_HIST, opacity=0.6, name="\u03b8\u0302*",
+        ))
+
+    # θ̂ and true θ vertical lines
+    fig.add_vline(x=theta_hat,
+                  line=dict(color=_C_THETA, width=2, dash="dash"),
+                  annotation_text="\u03b8\u0302", annotation_position="top left")
+    if true_theta is not None:
+        fig.add_vline(x=true_theta,
+                      line=dict(color=_C_TRUE, width=1.5, dash="dot"),
+                      annotation_text="\u03b8", annotation_position="top right")
+
+    # CI shading + boundary lines
+    for method, (lo, hi) in cis.items():
+        col = _CI_COLORS.get(method, "#ffffff")
+        fig.add_vrect(x0=lo, x1=hi, fillcolor=col, opacity=0.06,
+                      line=dict(width=0))
+        fig.add_vline(x=lo, line=dict(color=col, width=1, dash="dash"))
+        fig.add_vline(x=hi, line=dict(color=col, width=1, dash="dash"))
+
+    # Annotations
+    ya = 0.98
+    if bias is not None:
+        bias_col = "#f87171" if abs(bias) > max(0.01 * se_boot, 1e-6) else ann_col
+        fig.add_annotation(
+            x=0.02, y=ya, xref="paper", yref="paper",
+            text=f"Bias = {bias:.4f}",
+            showarrow=False, font=dict(size=10, color=bias_col),
+            xanchor="left", yanchor="top",
+        )
+        ya -= 0.06
+    if se_boot is not None:
+        fig.add_annotation(
+            x=0.02, y=ya, xref="paper", yref="paper",
+            text=f"SE<sub>boot</sub> = {se_boot:.4f}",
+            showarrow=False, font=dict(size=10, color=ann_col),
+            xanchor="left", yanchor="top",
+        )
+        ya -= 0.06
+    if bca_z0 is not None and "BCa" in cis:
+        fig.add_annotation(
+            x=0.02, y=ya, xref="paper", yref="paper",
+            text=f"BCa: z\u2080={bca_z0:.3f}, a={bca_a:.4f}",
+            showarrow=False, font=dict(size=10, color=_CI_COLORS["BCa"]),
+            xanchor="left", yanchor="top",
+        )
+
+    fig.update_layout(xaxis_title="\u03b8\u0302*", yaxis_title="Count",
+                      showlegend=False)
+    return fig
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 3. CI comparison (forest plot)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def draw_boot_ci_forest(cis, theta_hat, true_theta, dark=True):
+    """Horizontal error bars for each CI method — forest-plot style."""
+    fig = _base_fig(dark)
+
+    methods = list(cis.keys())
+    if not methods:
+        return fig
+
+    for method in methods:
+        lo, hi = cis[method]
+        col = _CI_COLORS.get(method, "#ffffff")
+        # CI bar
+        fig.add_trace(go.Scatter(
+            x=[lo, hi], y=[method, method], mode="lines",
+            line=dict(color=col, width=3),
+            showlegend=False, hoverinfo="skip",
+        ))
+        # θ̂ diamond
+        fig.add_trace(go.Scatter(
+            x=[theta_hat], y=[method], mode="markers",
+            marker=dict(color=col, size=8, symbol="diamond"),
+            showlegend=False,
+            text=[f"{method}: [{lo:.3f}, {hi:.3f}]  w={hi-lo:.3f}"],
+            hoverinfo="text",
+        ))
+        # Width annotation
+        fig.add_annotation(
+            x=hi, y=method, text=f"  w={hi - lo:.3f}",
+            showarrow=False, font=dict(size=9, color=col), xanchor="left",
+        )
+
+    # True θ reference
+    if true_theta is not None:
+        fig.add_vline(x=true_theta,
+                      line=dict(color=_C_TRUE, width=1.5, dash="dash"),
+                      annotation_text="true \u03b8",
+                      annotation_position="top right")
+
+    fig.add_vline(x=theta_hat,
+                  line=dict(color=_C_THETA, width=1, dash="dot"))
+
+    fig.update_layout(xaxis_title="\u03b8", yaxis=dict(type="category"))
+    return fig
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 4. Coverage simulation
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def draw_boot_coverage(coverage_dict, total, conf_level, dark=True):
+    """Bar chart: empirical coverage % per CI method with nominal reference."""
+    fig = _base_fig(dark)
+    ann_col = _DARK_TEXT if dark else _LIGHT_TEXT
+
+    if not coverage_dict or total == 0:
+        fig.add_annotation(
+            x=0.5, y=0.5, xref="paper", yref="paper",
+            text="Run experiments to see coverage",
+            showarrow=False, font=dict(size=13, color=ann_col),
+        )
+        fig.update_layout(xaxis_title="CI Method", yaxis_title="Coverage %")
+        return fig
+
+    methods   = list(coverage_dict.keys())
+    coverages = [coverage_dict[m] / total * 100 for m in methods]
+    colors    = [_CI_COLORS.get(m, _C_HIST) for m in methods]
+
+    fig.add_trace(go.Bar(
+        x=methods, y=coverages, marker_color=colors, width=0.5,
+        text=[f"{c:.1f}%" for c in coverages], textposition="outside",
+    ))
+
+    # Nominal reference + ±2 SE band
+    fig.add_hline(y=conf_level,
+                  line=dict(color=_C_THETA, width=1.5, dash="dash"),
+                  annotation_text=f"Nominal {conf_level:.0f}%",
+                  annotation_position="top right")
+    p  = conf_level / 100
+    se = np.sqrt(p * (1 - p) / total) * 100
+    fig.add_hrect(y0=conf_level - 2 * se, y1=conf_level + 2 * se,
+                  fillcolor=_C_THETA, opacity=0.08, line=dict(width=0))
+
+    fig.update_layout(
+        xaxis_title="CI Method", yaxis_title="Coverage %",
+        yaxis=dict(range=[max(0, min(coverages) - 10), 105]),
+        showlegend=False,
+    )
+    fig.add_annotation(
+        x=0.98, y=0.02, xref="paper", yref="paper",
+        text=f"n = {total} experiments",
+        showarrow=False, font=dict(size=10, color=ann_col),
+        xanchor="right", yanchor="bottom",
+    )
+    return fig

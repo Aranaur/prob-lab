@@ -25,6 +25,7 @@ COPY --chown=user:user np_ui.py np_server.py np_plots.py ./
 COPY --chown=user:user mt_ui.py mt_server.py mt_plots.py ./
 COPY --chown=user:user seq_ui.py seq_server.py seq_plots.py ./
 COPY --chown=user:user vr_ui.py vr_server.py vr_plots.py ./
+COPY --chown=user:user boot_ui.py boot_server.py boot_plots.py ./
 COPY --chown=user:user css/ ./css/
 
 # Відкриваємо порт

@@ -11,6 +11,7 @@ from np_ui import np_panel
 from mt_ui import mt_panel
 from seq_ui import seq_panel
 from vr_ui import vr_panel
+from boot_ui import boot_panel
 
 app_ui = ui.page_fluid(
 
@@ -264,6 +265,9 @@ app_ui = ui.page_fluid(
 
         # ── Tab 8: Variance Reduction Explorer ──────────────────────────────
         vr_panel(),
+
+        # ── Tab 9: Bootstrap Explorer ──────────────────────────────────────
+        boot_panel(),
 
         ui.nav_spacer(),
         ui.nav_control(

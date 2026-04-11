@@ -484,7 +484,7 @@ def mt_server(input, output, session, is_dark):
                 <th style="padding:3px 6px; border-bottom:1px solid {border};
                     font-size:0.65rem; color:{txt2}; font-weight:600;">BY</th>
                 <th style="padding:3px 6px; border-bottom:1px solid {border};
-                    font-size:0.65rem; color:{txt2}; font-weight:600;">BH</th>
+                    font-size:0.65rem; color:{txt2}; font-weight:600;">Reject (BH)</th>
               </tr>
             </thead>
             <tbody>

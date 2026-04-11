@@ -41,7 +41,7 @@
 - [x] **Peeking & Sequential Testing Explorer**
   - Симуляція **p-hacking** (peeking): траєкторія зміни p-value протягом збору вибірки.
   - **Alpha-spending**: як кордони O'Brien-Fleming чи Pocock дозволяють легально "заглядати" в дані.
-- [ ] **CUPED Explorer (Variance Reduction)**
+- [x] **CUPED Explorer (Variance Reduction)**
   - Візуалізація результатів тесту до/після з коваріатою $\rho$.
   - Пряме порівняння: naive two-sample vs CUPED (ширина довірчих інтервалів та зростання потужності без збільшення вибірки).
 - [ ] **Bootstrap Explorer (Ексклюзив детальної механіки)**

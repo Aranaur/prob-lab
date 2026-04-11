@@ -344,7 +344,7 @@ def draw_mt_pvalue_hist(
             color="rgba(56,189,248,0.35)",
             line=dict(color="#38bdf8", width=0.6),
         ),
-        hovertemplate="p \u2208 [%{x:.3f}, +%{customdata:.3f})<br>Density=%{y:.1f}<extra></extra>",
+        hovertemplate="p \u2248 %{x:.3f}<br>Density=%{y:.1f}<extra></extra>",
     ))
 
     if not file_drawer:

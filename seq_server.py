@@ -371,6 +371,21 @@ def seq_server(input, output, session, is_dark):
     def seq_total_val():
         return f"{seq_total():,}"
 
+    @render.text
+    def seq_lbl_peek():
+        delta = _safe("seq_delta", 0.0)
+        return "PEEKING POWER" if abs(delta) > 1e-9 else "PEEKING TYPE I"
+
+    @render.text
+    def seq_lbl_seq():
+        delta = _safe("seq_delta", 0.0)
+        return "SEQUENTIAL POWER" if abs(delta) > 1e-9 else "SEQUENTIAL FWER"
+
+    @render.text
+    def seq_title_error():
+        delta = _safe("seq_delta", 0.0)
+        return "POWER COMPARISON" if abs(delta) > 1e-9 else "TYPE I ERROR COMPARISON"
+
     # ── Chart renderers ──────────────────────────────────────────────────
     @render.ui
     def seq_traj_plot():

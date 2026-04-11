@@ -179,9 +179,8 @@ def seq_panel() -> ui.Tag:
                 ui.div(
                     ui.div(
                         ui.div(
-                            "PEEKING TYPE\u00a0I\u00a0",
-                            tip("Empirical FWER when peeking after every observation "
-                                "(or empirical power when \u03b4\u2009\u2260\u20090)."),
+                            ui.output_text("seq_lbl_peek", inline=True), "\u00a0",
+                            tip("Empirical rejection rate when peeking after every observation."),
                             class_="stat-label",
                         ),
                         ui.div(ui.output_text("seq_peek_rate", inline=True),
@@ -190,8 +189,8 @@ def seq_panel() -> ui.Tag:
                     ),
                     ui.div(
                         ui.div(
-                            "SEQUENTIAL FWER\u00a0",
-                            tip("Empirical FWER (or power) with sequential boundaries."),
+                            ui.output_text("seq_lbl_seq", inline=True), "\u00a0",
+                            tip("Empirical rejection rate with sequential boundaries."),
                             class_="stat-label",
                         ),
                         ui.div(ui.output_text("seq_seq_rate", inline=True),
@@ -238,7 +237,7 @@ def seq_panel() -> ui.Tag:
                             class_="glass-card chart-card",
                         ),
                         ui.div(
-                            ui.div("TYPE\u00a0I ERROR COMPARISON",
+                            ui.div(ui.output_text("seq_title_error", inline=True),
                                    class_="card-title"),
                             ui.output_ui("seq_error_plot"),
                             class_="glass-card chart-card",

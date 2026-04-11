@@ -45,6 +45,32 @@ def vr_server(input, output, session, is_dark):
     speed_ms       = reactive.value(0.5)
     _active_preset = reactive.value(None)
 
+    @render.ui
+    def vr_misconception_banner():
+        if input.vr_mode() == "cuped":
+            return ui.div(
+                ui.tags.i(class_="info-icon"),
+                ui.tags.strong(" Common Misconception: "),
+                "\u201cI can center the covariate X by group mean in CUPED.\u201d",
+                ui.tags.br(),
+                ui.tags.strong("Reality: "),
+                "In Y", ui.tags.sub("cuped"), " = Y \u2212 \u03b8\u0302(X \u2212 X\u0304), the mean X\u0304 must be the ",
+                ui.tags.em("global"), " mean (control\u2009+\u2009treatment). Per-group centering biases the treatment-effect estimate.",
+                class_="info-banner-text",
+            )
+        else:
+            return ui.div(
+                ui.tags.i(class_="info-icon"),
+                ui.tags.strong(" Common Misconception: "),
+                "\u201cI can classify 'power users' based on their behavior ",
+                ui.tags.em("during"), " the A/B test.\u201d",
+                ui.tags.br(),
+                ui.tags.strong("Reality: "),
+                "This causes ", ui.tags.strong("post-treatment bias"), ". Strata assignment must be based purely on ",
+                ui.tags.em("pre-experiment"), " data to remain independent of the treatment effect.",
+                class_="info-banner-text",
+            )
+
     # ── Dynamic mode-specific parameters ────────────────────────────────────
     @render.ui
     def vr_mode_params():

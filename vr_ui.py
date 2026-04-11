@@ -15,23 +15,9 @@ def vr_panel() -> ui.Tag:
             # ── LEFT SIDEBAR ─────────────────────────────────────────────────
             ui.div(
 
-                # Misconception banner  (CUPED centering pitfall)
-                ui.div(
-                    ui.tags.i(class_="info-icon"),
-                    ui.tags.strong(" Common Misconception: "),
-                    "\u201cI can center the covariate X by group mean "
-                    "in CUPED.\u201d",
-                    ui.tags.br(),
-                    ui.tags.strong("Reality: "),
-                    "In Y",
-                    ui.tags.sub("cuped"),
-                    " = Y \u2212 \u03b8\u0302(X \u2212 X\u0304), the mean X\u0304 "
-                    "must be the ",
-                    ui.tags.em("global"),
-                    " mean (control\u2009+\u2009treatment). Per-group centering "
-                    "biases the treatment-effect estimate.",
-                    class_="info-banner-text",
-                ),
+                # Misconception banner (dynamic)
+                ui.output_ui("vr_misconception_banner"),
+
 
                 # Method selector
                 ui.input_select(

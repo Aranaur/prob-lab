@@ -117,6 +117,10 @@ def draw_seq_trajectory(
         ))
 
     # Stop markers
+    has_stop = False
+    is_seq = boundary_pvals is not None and len(boundary_pvals) == len(xs)
+    bg_col = _C_SEQ if is_seq else _C_PEEK
+
     if stop_ns is not None:
         for i, sn in enumerate(stop_ns):
             if sn is not None and i < len(trajectories):
@@ -127,7 +131,8 @@ def draw_seq_trajectory(
                         idx = j
                         break
                 if idx is not None and idx < len(traj):
-                    col = _C_LAST if i == len(trajectories) - 1 else _C_PEEK
+                    has_stop = True
+                    col = _C_LAST if i == len(trajectories) - 1 else bg_col
                     fig.add_trace(go.Scatter(
                         x=[xs[idx]], y=[traj[idx]], mode="markers",
                         marker=dict(size=8, color=col, symbol="diamond",
@@ -135,11 +140,20 @@ def draw_seq_trajectory(
                         showlegend=False, hoverinfo="skip",
                     ))
 
+    if has_stop:
+        fig.add_trace(go.Scatter(
+            x=[None], y=[None], mode="markers",
+            marker=dict(size=8, color=bg_col, symbol="diamond",
+                        line=dict(width=1, color="#fff")),
+            name="Stopped early", showlegend=True,
+        ))
+
     # Info fraction top axis annotation
     fig.add_annotation(
-        xref="paper", yref="paper", x=0.5, y=1.02,
+        xref="paper", yref="paper", x=0.02, y=0.98,
         text=f"Information fraction: n/N (N={N})",
-        showarrow=False, font=dict(size=8, color=t["muted"]),
+        showarrow=False, font=dict(size=10, color=t["muted"]),
+        xanchor="left", yanchor="top",
     )
 
     fig.update_layout(

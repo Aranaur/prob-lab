@@ -16,6 +16,7 @@ from gof_server import gof_server
 from np_server import np_server
 from mt_server import mt_server
 from seq_server import seq_server
+from vr_server import vr_server
 
 # Plotly → HTML config (modebar hidden, responsive sizing)
 _PLOTLY_CONFIG = {"displayModeBar": False, "responsive": True}
@@ -48,6 +49,7 @@ def server(input, output, session):
     np_server(input, output, session, is_dark)
     mt_server(input, output, session, is_dark)
     seq_server(input, output, session, is_dark)
+    vr_server(input, output, session, is_dark)
 
     MAX_DISPLAY = 50      # CI intervals shown on chart
     MAX_DATA    = 10_000  # rolling window for histogram / proportion data

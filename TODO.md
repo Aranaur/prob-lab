@@ -38,7 +38,7 @@
 - [x] **Multiple Testing Explorer (False Positives Base)**
   - **Garden of forking paths**: симуляція тестування 20+ змінних і гарантоване отримання хибнопозитивних результатів.
   - Вплив поправок: порівняння суворості Bonferroni, Holm, BH (FDR).
-- [ ] **Peeking & Sequential Testing Explorer**
+- [x] **Peeking & Sequential Testing Explorer**
   - Симуляція **p-hacking** (peeking): траєкторія зміни p-value протягом збору вибірки.
   - **Alpha-spending**: як кордони O'Brien-Fleming чи Pocock дозволяють легально "заглядати" в дані.
 - [ ] **CUPED Explorer (Variance Reduction)**

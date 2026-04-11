@@ -10,6 +10,7 @@ from gof_ui import gof_panel
 from np_ui import np_panel
 from mt_ui import mt_panel
 from seq_ui import seq_panel
+from vr_ui import vr_panel
 
 app_ui = ui.page_fluid(
 
@@ -260,6 +261,9 @@ app_ui = ui.page_fluid(
 
         # ── Tab 7: Sequential Testing Explorer ──────────────────────────────
         seq_panel(),
+
+        # ── Tab 8: Variance Reduction Explorer ──────────────────────────────
+        vr_panel(),
 
         ui.nav_spacer(),
         ui.nav_control(

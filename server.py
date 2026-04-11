@@ -152,30 +152,30 @@ def server(input, output, session):
         dist = input.ci_pop_dist()
         
         n_col = ui.div(
-            ui.input_numeric("sample_size",
+            ui.input_numeric("ci_sample_size",
                 ui.TagList("Sample size (n)\u00a0", tip("Number of observations in each sample.")),
                 value=5, min=2, max=500, step=1, width="100%")
         )
 
         if dist == "normal":
             r1 = ui.div(
-                ui.div(ui.input_numeric("pop_mean", ui.TagList("Population \u03bc\u00a0", tip("The expected value (center) of the normal distribution.")), value=0.0, step=0.5, width="100%")),
-                ui.div(ui.input_numeric("pop_sd", ui.TagList("Population \u03c3\u00a0", tip("Measures the spread of the distribution around the mean.")), value=1.0, min=0.1, step=0.5, width="100%")),
+                ui.div(ui.input_numeric("ci_pop_mean", ui.TagList("Population \u03bc\u00a0", tip("The expected value (center) of the normal distribution.")), value=0.0, step=0.5, width="100%")),
+                ui.div(ui.input_numeric("ci_pop_sd", ui.TagList("Population \u03c3\u00a0", tip("Measures the spread of the distribution around the mean.")), value=1.0, min=0.1, step=0.5, width="100%")),
                 class_="group-params-cols"
             )
             return ui.div(r1, ui.div(n_col, ui.div(), class_="group-params-cols"), class_="group-params-block")
             
         elif dist == "uniform":
             r1 = ui.div(
-                ui.div(ui.input_numeric("pop_min", ui.TagList("Minimum (a)\u00a0", tip("The lower bound of the uniform distribution.")), value=0.0, step=0.5, width="100%")),
-                ui.div(ui.input_numeric("pop_max", ui.TagList("Maximum (b)\u00a0", tip("The upper bound of the uniform distribution.")), value=1.0, step=0.5, width="100%")),
+                ui.div(ui.input_numeric("ci_pop_min", ui.TagList("Minimum (a)\u00a0", tip("The lower bound of the uniform distribution.")), value=0.0, step=0.5, width="100%")),
+                ui.div(ui.input_numeric("ci_pop_max", ui.TagList("Maximum (b)\u00a0", tip("The upper bound of the uniform distribution.")), value=1.0, step=0.5, width="100%")),
                 class_="group-params-cols"
             )
             return ui.div(r1, ui.div(n_col, ui.div(), class_="group-params-cols"), class_="group-params-block")
             
         elif dist == "exponential":
             r1 = ui.div(
-                ui.div(ui.input_numeric("pop_lambda", ui.TagList("Rate (\u03bb)\u00a0", tip("The rate parameter. Higher \u03bb means more frequent events and a smaller mean (1/\u03bb).")), value=1.0, min=0.1, step=0.5, width="100%")),
+                ui.div(ui.input_numeric("ci_pop_lambda", ui.TagList("Rate (\u03bb)\u00a0", tip("The rate parameter. Higher \u03bb means more frequent events and a smaller mean (1/\u03bb).")), value=1.0, min=0.1, step=0.5, width="100%")),
                 n_col,
                 class_="group-params-cols"
             )
@@ -183,15 +183,15 @@ def server(input, output, session):
             
         elif dist == "lognormal":
             r1 = ui.div(
-                ui.div(ui.input_numeric("lnorm_mu", ui.TagList("Log-mean (\u03bc\u2097\u2099)\u00a0", tip("Mean of the underlying normal distribution on the log scale.")), value=0.0, step=0.25, width="100%")),
-                ui.div(ui.input_numeric("lnorm_sigma", ui.TagList("Log-std (\u03c3\u2097\u2099)\u00a0", tip("Std dev on the log scale. Larger values give stronger right skew.")), value=0.5, min=0.1, max=3.0, step=0.25, width="100%")),
+                ui.div(ui.input_numeric("ci_lnorm_mu", ui.TagList("Log-mean (\u03bc\u2097\u2099)\u00a0", tip("Mean of the underlying normal distribution on the log scale.")), value=0.0, step=0.25, width="100%")),
+                ui.div(ui.input_numeric("ci_lnorm_sigma", ui.TagList("Log-std (\u03c3\u2097\u2099)\u00a0", tip("Std dev on the log scale. Larger values give stronger right skew.")), value=0.5, min=0.1, max=3.0, step=0.25, width="100%")),
                 class_="group-params-cols"
             )
             return ui.div(r1, ui.div(n_col, ui.div(), class_="group-params-cols"), class_="group-params-block")
             
         elif dist == "poisson":
             r1 = ui.div(
-                ui.div(ui.input_numeric("pois_lam", ui.TagList("Rate (\u03bb)\u00a0", tip("Expected number of events. Both mean and variance equal \u03bb.")), value=3.0, min=0.1, step=0.5, width="100%")),
+                ui.div(ui.input_numeric("ci_pois_lam", ui.TagList("Rate (\u03bb)\u00a0", tip("Expected number of events. Both mean and variance equal \u03bb.")), value=3.0, min=0.1, step=0.5, width="100%")),
                 n_col,
                 class_="group-params-cols"
             )
@@ -199,8 +199,8 @@ def server(input, output, session):
             
         elif dist == "binomial":
             r1 = ui.div(
-                ui.div(ui.input_numeric("binom_n", ui.TagList("Trials (m)\u00a0", tip("Number of independent Bernoulli trials per observation.")), value=10, min=1, max=500, step=1, width="100%")),
-                ui.div(ui.input_numeric("binom_p", ui.TagList("Probability (p)\u00a0", tip("Probability of success on each trial (0 < p < 1).")), value=0.5, min=0.01, max=0.99, step=0.05, width="100%")),
+                ui.div(ui.input_numeric("ci_binom_n", ui.TagList("Trials (m)\u00a0", tip("Number of independent Bernoulli trials per observation.")), value=10, min=1, max=500, step=1, width="100%")),
+                ui.div(ui.input_numeric("ci_binom_p", ui.TagList("Probability (p)\u00a0", tip("Probability of success on each trial (0 < p < 1).")), value=0.5, min=0.01, max=0.99, step=0.05, width="100%")),
                 class_="group-params-cols"
             )
             return ui.div(r1, ui.div(n_col, ui.div(), class_="group-params-cols"), class_="group-params-block")

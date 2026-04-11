@@ -170,43 +170,93 @@ def boot_panel() -> ui.Tag:
             # ── RIGHT MAIN PANEL ─────────────────────────────────────────────
             ui.div(
 
-                # Stats row (dynamic)
-                ui.output_ui("boot_stats_row"),
+                ui.navset_tab(
 
-                # Charts area
-                ui.div(
-                    # Left column: 3 charts
-                    ui.div(
+                    # ── Tab A: Mechanics & Coverage ──────────────────────
+                    ui.nav_panel(
+                        "Mechanics & Coverage",
+
+                        # Stats row (dynamic)
+                        ui.output_ui("boot_stats_row"),
+
+                        # Charts area
                         ui.div(
-                            ui.div("ORIGINAL SAMPLE + RESAMPLE",
-                                   class_="card-title"),
-                            ui.output_ui("boot_sample_plot"),
-                            class_="glass-card chart-card",
+                            # Left column: 3 charts
+                            ui.div(
+                                ui.div(
+                                    ui.div("ORIGINAL SAMPLE + RESAMPLE",
+                                           class_="card-title"),
+                                    ui.output_ui("boot_sample_plot"),
+                                    class_="glass-card chart-card",
+                                ),
+                                ui.div(
+                                    ui.div("BOOTSTRAP DISTRIBUTION",
+                                           class_="card-title"),
+                                    ui.output_ui("boot_dist_plot"),
+                                    class_="glass-card chart-card",
+                                ),
+                                ui.div(
+                                    ui.div("CI COMPARISON",
+                                           class_="card-title"),
+                                    ui.output_ui("boot_ci_plot"),
+                                    class_="glass-card chart-card",
+                                ),
+                                class_="charts-col-left",
+                            ),
+                            # Right column: tall coverage chart
+                            ui.div(
+                                ui.div(
+                                    ui.div("COVERAGE SIMULATION",
+                                           class_="card-title"),
+                                    ui.output_ui("boot_coverage_plot"),
+                                    class_="glass-card chart-card",
+                                ),
+                                class_="charts-col-right",
+                            ),
+                            class_="charts-area",
                         ),
-                        ui.div(
-                            ui.div("BOOTSTRAP DISTRIBUTION",
-                                   class_="card-title"),
-                            ui.output_ui("boot_dist_plot"),
-                            class_="glass-card chart-card",
-                        ),
-                        ui.div(
-                            ui.div("CI COMPARISON", class_="card-title"),
-                            ui.output_ui("boot_ci_plot"),
-                            class_="glass-card chart-card",
-                        ),
-                        class_="charts-col-left",
                     ),
-                    # Right column: tall coverage chart
-                    ui.div(
+
+                    # ── Tab B: Convergence Analysis ──────────────────────
+                    ui.nav_panel(
+                        "Convergence Analysis",
+
                         ui.div(
-                            ui.div("COVERAGE SIMULATION",
-                                   class_="card-title"),
-                            ui.output_ui("boot_coverage_plot"),
-                            class_="glass-card chart-card",
+                            ui.div(
+                                ui.div(
+                                    ui.tags.span(
+                                        "Reference test: ",
+                                        style="margin-right:0.5rem;",
+                                    ),
+                                    ui.output_ui("boot_conv_ref_ui"),
+                                    style=("display:flex; align-items:center; "
+                                           "gap:0.75rem; flex-wrap:wrap;"),
+                                ),
+                                ui.input_action_button(
+                                    "boot_conv_run",
+                                    "Run Convergence Simulation",
+                                    class_="btn-ctrl btn-sample",
+                                ),
+                                style=("display:flex; justify-content:space-between; "
+                                       "align-items:center; padding:0.75rem 0; "
+                                       "flex-wrap:wrap; gap:0.5rem;"),
+                            ),
+
+                            ui.output_ui("boot_conv_status"),
+
+                            ui.div(
+                                ui.div("FPR vs SAMPLE SIZE",
+                                       class_="card-title"),
+                                ui.output_ui("boot_conv_plot"),
+                                class_="glass-card chart-card",
+                                style="min-height:500px;",
+                            ),
+
+                            style="padding-top:0.5rem;",
                         ),
-                        class_="charts-col-right",
                     ),
-                    class_="charts-area",
+
+                    id="boot_main_tabs",
                 ),
 
                 class_="main-panel",

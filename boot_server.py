@@ -13,6 +13,7 @@ from boot_plots import (
     draw_boot_distribution,
     draw_boot_ci_forest,
     draw_boot_coverage,
+    draw_boot_convergence,
 )
 
 _PLOTLY_CFG = {"displayModeBar": False, "responsive": True}
@@ -674,4 +675,255 @@ def boot_server(input, output, session, is_dark):
         dark = is_dark()
         conf = float(input.boot_conf() or 95)
         fig = draw_boot_coverage(_cov_counts(), _total(), conf, dark)
+        return _fig_html(fig)
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # Convergence Analysis (N vs FPR)
+    # ═══════════════════════════════════════════════════════════════════════
+
+    _N_GRID = [5, 10, 20, 30, 50, 100, 200, 500]
+    _CONV_K = 1000   # experiments per N
+    _CONV_B = 400    # bootstrap resamples per experiment
+
+    _conv_results = reactive.value([])
+    _conv_running = reactive.value(False)
+
+    # ── Dynamic reference test selector ────────────────────────────────
+    @render.ui
+    def boot_conv_ref_ui():
+        stat = input.boot_statistic()
+        if stat == "mean":
+            choices = {"t-test": "t-test (one-sample)"}
+            selected = "t-test"
+        elif stat == "median":
+            choices = {"Wilcoxon": "Wilcoxon signed-rank"}
+            selected = "Wilcoxon"
+        else:
+            choices = {"none": "— none available —"}
+            selected = "none"
+        return ui.input_select(
+            "boot_conv_ref", None,
+            choices=choices, selected=selected, width="180px",
+        )
+
+    # ── Vectorized convergence simulation ──────────────────────────────
+
+    def _generate_matrix(dist: str, K: int, N: int) -> np.ndarray:
+        """Generate K×N matrix of samples from *dist*."""
+        if dist == "normal":
+            return np.random.normal(0, 1, (K, N))
+        if dist == "lognormal":
+            return np.random.lognormal(0, 0.5, (K, N))
+        if dist == "heavy":
+            return np.random.standard_t(3, (K, N))
+        if dist == "uniform":
+            return np.random.uniform(0, 1, (K, N))
+        if dist == "bimodal":
+            mask = np.random.random((K, N)) < 0.5
+            out = np.empty((K, N))
+            out[mask] = np.random.normal(-2, 1, int(mask.sum()))
+            out[~mask] = np.random.normal(2, 1, int((~mask).sum()))
+            return out
+        return np.random.normal(0, 1, (K, N))
+
+    def _vec_stat(stat: str, x: np.ndarray) -> np.ndarray:
+        """Statistic along axis=-1.  x is (…, N) → (…,)."""
+        if stat == "mean":
+            return x.mean(axis=-1)
+        if stat == "median":
+            return np.median(x, axis=-1)
+        if stat == "trimmed":
+            N = x.shape[-1]
+            k = max(1, int(N * 0.1))
+            s = np.sort(x, axis=-1)
+            return s[..., k:N - k].mean(axis=-1)
+        if stat == "std":
+            return x.std(axis=-1, ddof=1)
+        if stat == "percentile90":
+            return np.percentile(x, 90, axis=-1)
+        return x.mean(axis=-1)
+
+    def _run_convergence_for_n(dist, stat, N, K, B, alpha, methods,
+                               true_theta, ref_test):
+        """Run K bootstrap experiments at sample size N. Returns list[dict]."""
+        samples = _generate_matrix(dist, K, N)           # (K, N)
+        theta_hats = _vec_stat(stat, samples)             # (K,)
+
+        # Bootstrap resamples: (K, B, N) via advanced indexing
+        idx = np.random.randint(0, N, (K, B, N))
+        row_idx = np.arange(K)[:, None, None]
+        boot_samps = samples[row_idx, idx]                # (K, B, N)
+        boot_stats = _vec_stat(stat, boot_samps)          # (K, B)
+
+        # SE of each bootstrap distribution: (K,)
+        se_boots = boot_stats.std(axis=1, ddof=1)
+
+        # --- CI coverage checks ---
+        z_a = stats.norm.ppf(1 - alpha / 2)
+        covers = {}
+
+        if "Percentile" in methods:
+            lo = np.percentile(boot_stats, alpha / 2 * 100, axis=1)
+            hi = np.percentile(boot_stats, (1 - alpha / 2) * 100, axis=1)
+            covers["Percentile"] = (lo <= true_theta) & (true_theta <= hi)
+
+        if "Normal" in methods:
+            lo = theta_hats - z_a * se_boots
+            hi = theta_hats + z_a * se_boots
+            covers["Normal"] = (lo <= true_theta) & (true_theta <= hi)
+
+        if "Basic" in methods:
+            q_hi = np.percentile(boot_stats, (1 - alpha / 2) * 100, axis=1)
+            q_lo = np.percentile(boot_stats, alpha / 2 * 100, axis=1)
+            lo = 2 * theta_hats - q_hi
+            hi = 2 * theta_hats - q_lo
+            covers["Basic"] = (lo <= true_theta) & (true_theta <= hi)
+
+        if "Studentized" in methods and stat == "mean":
+            boot_ses_inner = boot_samps.std(axis=2, ddof=1) / np.sqrt(N)
+            t_star = (boot_stats - theta_hats[:, None]) / (boot_ses_inner + 1e-12)
+            t_lo = np.percentile(t_star, (1 - alpha / 2) * 100, axis=1)
+            t_hi = np.percentile(t_star, alpha / 2 * 100, axis=1)
+            se_orig = samples.std(axis=1, ddof=1) / np.sqrt(N)
+            lo = theta_hats - t_lo * se_orig
+            hi = theta_hats - t_hi * se_orig
+            covers["Studentized"] = (lo <= true_theta) & (true_theta <= hi)
+
+        if "BCa" in methods:
+            # Bias correction z0: proportion of boot_stats < theta_hat
+            prop = np.clip(
+                np.mean(boot_stats < theta_hats[:, None], axis=1),
+                1e-10, 1 - 1e-10,
+            )
+            z0 = stats.norm.ppf(prop)                     # (K,)
+
+            # Acceleration via jackknife
+            if stat == "mean":
+                # O(1) vectorized jackknife for mean
+                sums = samples.sum(axis=1, keepdims=True)  # (K, 1)
+                jack = (sums - samples) / (N - 1)          # (K, N)
+            else:
+                # Loop-based jackknife for other stats
+                jack = np.empty((K, N))
+                for j in range(N):
+                    dropped = np.delete(samples, j, axis=1)  # (K, N-1)
+                    jack[:, j] = _vec_stat(stat, dropped)
+
+            jm = jack.mean(axis=1, keepdims=True)          # (K, 1)
+            diff = jm - jack                                # (K, N)
+            num = (diff ** 3).sum(axis=1)
+            den = 6.0 * ((diff ** 2).sum(axis=1)) ** 1.5
+            a_acc = num / (den + 1e-12)                     # (K,)
+
+            z_lo = stats.norm.ppf(alpha / 2)
+            z_hi = stats.norm.ppf(1 - alpha / 2)
+            a1 = stats.norm.cdf(
+                z0 + (z0 + z_lo) / (1 - a_acc * (z0 + z_lo)))
+            a2 = stats.norm.cdf(
+                z0 + (z0 + z_hi) / (1 - a_acc * (z0 + z_hi)))
+            a1 = np.clip(a1, 0.5 / B, 1 - 0.5 / B)
+            a2 = np.clip(a2, 0.5 / B, 1 - 0.5 / B)
+
+            # Vectorized percentile via sorted array
+            boot_sorted = np.sort(boot_stats, axis=1)      # (K, B)
+            idx1 = np.clip((a1 * B).astype(int), 0, B - 1)
+            idx2 = np.clip((a2 * B).astype(int), 0, B - 1)
+            lo = boot_sorted[np.arange(K), idx1]
+            hi = boot_sorted[np.arange(K), idx2]
+            covers["BCa"] = (lo <= true_theta) & (true_theta <= hi)
+
+        # --- Reference test ---
+        if ref_test == "t-test" and stat == "mean":
+            se_orig = samples.std(axis=1, ddof=1) / np.sqrt(N)
+            t_vals = (theta_hats - true_theta) / (se_orig + 1e-12)
+            p_vals = 2 * (1 - stats.t.cdf(np.abs(t_vals), df=N - 1))
+            covers["t-test"] = p_vals >= alpha
+
+        if ref_test == "Wilcoxon" and stat == "median":
+            # Vectorized sign-based approximation for Wilcoxon
+            # For true_theta = population median under H0, count signs
+            cov_mask = np.ones(K, dtype=bool)
+            for i in range(K):
+                centered = samples[i] - true_theta
+                centered = centered[centered != 0]
+                if len(centered) < 2:
+                    cov_mask[i] = True
+                    continue
+                from scipy.stats import wilcoxon as _wilcoxon
+                try:
+                    _, p = _wilcoxon(centered, alternative="two-sided")
+                    cov_mask[i] = p >= alpha
+                except ValueError:
+                    cov_mask[i] = True
+            covers["Wilcoxon"] = cov_mask
+
+        # Build result rows
+        rows = []
+        for method, cov_arr in covers.items():
+            fpr = 1.0 - float(np.mean(cov_arr))
+            se_fpr = float(np.sqrt(fpr * (1 - fpr) / K))
+            rows.append({"N": N, "method": method, "fpr": fpr, "se": se_fpr})
+        return rows
+
+    # ── Button handler ─────────────────────────────────────────────────
+
+    @reactive.effect
+    @reactive.event(input.boot_conv_run)
+    def _run_convergence():
+        dist  = input.boot_dist()
+        stat  = input.boot_statistic()
+        alpha = 1 - (input.boot_conf() or 95) / 100
+        try:
+            methods = list(input.boot_ci_methods())
+        except Exception:
+            methods = ["Percentile", "Normal", "BCa"]
+        try:
+            ref = input.boot_conv_ref()
+        except Exception:
+            ref = "none"
+        if ref == "none":
+            ref = None
+
+        true_t = _true_param(dist, stat)
+        _conv_running.set(True)
+
+        all_rows = []
+        for N in _N_GRID:
+            rows = _run_convergence_for_n(
+                dist, stat, N, _CONV_K, _CONV_B, alpha, methods, true_t, ref)
+            all_rows.extend(rows)
+
+        _conv_results.set(all_rows)
+        _conv_running.set(False)
+
+    # ── Status text ────────────────────────────────────────────────────
+
+    @render.ui
+    def boot_conv_status():
+        results = _conv_results()
+        if _conv_running():
+            return ui.div(
+                "Simulating… this may take a few seconds.",
+                class_="chart-placeholder",
+                style="padding:0.5rem 0; font-style:italic; opacity:0.7;",
+            )
+        if not results:
+            return ui.div()
+        # Summarise
+        methods = sorted(set(r["method"] for r in results))
+        ns = sorted(set(r["N"] for r in results))
+        return ui.div(
+            f"Completed: {len(methods)} methods \u00d7 {len(ns)} sample sizes "
+            f"\u00d7 {_CONV_K:,} experiments  "
+            f"(B\u2009=\u2009{_CONV_B})",
+            style="padding:0.25rem 0; opacity:0.7; font-size:0.85rem;",
+        )
+
+    # ── Chart renderer ─────────────────────────────────────────────────
+
+    @render.ui
+    def boot_conv_plot():
+        dark = is_dark()
+        alpha = 1 - (input.boot_conf() or 95) / 100
+        fig = draw_boot_convergence(_conv_results(), alpha, dark)
         return _fig_html(fig)

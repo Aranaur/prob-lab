@@ -20,6 +20,11 @@ _CI_COLORS = {
     "BCa":         "#34d399",
 }
 
+_REF_COLORS = {
+    "t-test":   "#fbbf24",
+    "Wilcoxon": "#fbbf24",
+}
+
 _DARK_BG    = "#0f172a"
 _DARK_PAPER = "rgba(30,41,59,0.60)"
 _DARK_GRID  = "rgba(148,163,184,0.08)"
@@ -265,3 +270,102 @@ def draw_boot_coverage(coverage_dict, total, conf_level, dark=True):
         xanchor="right", yanchor="bottom",
     )
     return fig
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 5. Convergence analysis — FPR vs N
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def draw_boot_convergence(results, alpha, dark=True):
+    """Line chart: FPR vs sample-size N for each CI method + reference test.
+
+    Parameters
+    ----------
+    results : list[dict]
+        Each dict has keys: "N", "method", "fpr", "se".
+    alpha : float
+        Nominal significance level (e.g. 0.05).
+    """
+    fig = _base_fig(dark)
+    ann_col = _DARK_TEXT if dark else _LIGHT_TEXT
+
+    if not results:
+        fig.add_annotation(
+            x=0.5, y=0.5, xref="paper", yref="paper",
+            text="Click \u201cRun Convergence\u201d to start the simulation",
+            showarrow=False, font=dict(size=13, color=ann_col),
+        )
+        fig.update_layout(xaxis_title="Sample size N", yaxis_title="FPR")
+        return fig
+
+    # Group by method
+    from collections import defaultdict
+    grouped = defaultdict(lambda: {"N": [], "fpr": [], "se": []})
+    for r in results:
+        g = grouped[r["method"]]
+        g["N"].append(r["N"])
+        g["fpr"].append(r["fpr"])
+        g["se"].append(r["se"])
+
+    for method, g in grouped.items():
+        ns   = g["N"]
+        fprs = np.array(g["fpr"])
+        ses  = np.array(g["se"])
+
+        col = _CI_COLORS.get(method, _REF_COLORS.get(method, "#ffffff"))
+        is_ref = method in _REF_COLORS
+
+        # Confidence band (±1.96 SE)
+        upper = fprs + 1.96 * ses
+        lower = np.maximum(fprs - 1.96 * ses, 0.0)
+
+        fig.add_trace(go.Scatter(
+            x=ns, y=upper.tolist(), mode="lines",
+            line=dict(width=0), showlegend=False, hoverinfo="skip",
+        ))
+        fig.add_trace(go.Scatter(
+            x=ns, y=lower.tolist(), mode="lines",
+            line=dict(width=0), fill="tonexty",
+            fillcolor=col.replace("#", "rgba(") + ")" if False else _rgba(col, 0.12),
+            showlegend=False, hoverinfo="skip",
+        ))
+
+        # Main line
+        fig.add_trace(go.Scatter(
+            x=ns, y=fprs.tolist(), mode="lines+markers",
+            line=dict(color=col, width=2.5,
+                      dash="dot" if is_ref else "solid"),
+            marker=dict(size=6 if not is_ref else 5),
+            name=method,
+            text=[f"{method}: FPR={f:.3f} ± {s:.3f}<br>N={n}"
+                  for n, f, s in zip(ns, fprs, ses)],
+            hoverinfo="text",
+        ))
+
+    # Nominal α reference line
+    fig.add_hline(
+        y=alpha,
+        line=dict(color="#ef4444", width=1.5, dash="dash"),
+        annotation_text=f"\u03b1 = {alpha}",
+        annotation_position="top right",
+        annotation_font=dict(color="#ef4444", size=11),
+    )
+
+    fig.update_layout(
+        xaxis_title="Sample size N",
+        yaxis_title="False Positive Rate",
+        xaxis=dict(type="log", dtick=1),
+        yaxis=dict(range=[0, max(alpha * 3, 0.15)]),
+        showlegend=True,
+        legend=dict(x=0.98, y=0.98, xanchor="right", yanchor="top",
+                    bgcolor="rgba(0,0,0,0)"),
+    )
+
+    return fig
+
+
+def _rgba(hex_color: str, opacity: float) -> str:
+    """Convert '#RRGGBB' to 'rgba(R,G,B,opacity)'."""
+    h = hex_color.lstrip("#")
+    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    return f"rgba({r},{g},{b},{opacity})"

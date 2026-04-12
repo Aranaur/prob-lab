@@ -215,7 +215,7 @@ def pvalue_server(input, output, session, is_dark):
             "The textbook definition of Type\u00a0I error rate.",
         ),
         "under": (
-            "Underpowered study",
+            "Low power study",
             "One-sample, \u03bc_true\u200a=\u200a0.2, \u03c3\u200a=\u200a1, n\u200a=\u200a10. "
             "Real effect exists but power \u2248\u200a12\u202f%. "
             "Most p-values exceed 0.05 \u2014 shows why small studies fail to replicate.",

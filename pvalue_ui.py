@@ -148,7 +148,7 @@ def pvalue_panel() -> ui.Tag:
                 ui.div(
                     ui.input_action_button("pv_pre_h0",      "H\u2080 true",
                                            class_="btn-ctrl btn-preset"),
-                    ui.input_action_button("pv_pre_under",   "Underpowered",
+                    ui.input_action_button("pv_pre_under",   "Low power",
                                            class_="btn-ctrl btn-preset"),
                     ui.input_action_button("pv_pre_largen",  "Large n",
                                            class_="btn-ctrl btn-preset"),
@@ -160,40 +160,40 @@ def pvalue_panel() -> ui.Tag:
                 ),
                 ui.output_ui("pv_preset_desc"),
 
-                # ── Outlier injection ─────────────────────────────────────────
+                # ── Robustness options ────────────────────────────────────────
                 ui.tags.hr(style="border-color: rgba(255,255,255,0.12); margin: 6px 0;"),
-                ui.input_checkbox(
-                    "pv_outlier_on",
-                    ui.TagList(
-                        "Inject outlier\u00a0",
-                        tip(
-                            "Replaces one observation in every sample with an extreme value "
-                            "opposing the true effect. "
-                            "Shows how a single outlier inflates variance and pulls the "
-                            "sample mean toward H\u2080, pushing a significant result "
-                            "into non-significance. Larger magnitude \u2192 more broken test."
+                ui.div(
+                    ui.input_checkbox(
+                        "pv_outlier_on",
+                        ui.TagList(
+                            "Inject outlier\u00a0",
+                            tip(
+                                "Replaces one observation in every sample with an extreme value "
+                                "opposing the true effect. "
+                                "Shows how a single outlier inflates variance and pulls the "
+                                "sample mean toward H\u2080, pushing a significant result "
+                                "into non-significance. Larger magnitude \u2192 more broken test."
+                            ),
                         ),
+                        value=False,
                     ),
-                    value=False,
+                    ui.input_checkbox(
+                        "pv_wilcoxon_on",
+                        ui.TagList(
+                            "Wilcoxon test\u00a0",
+                            tip(
+                                "Runs a nonparametric test alongside the t/z-test on every sample. "
+                                "One-sample & Paired \u2192 Wilcoxon signed-rank; "
+                                "Two-sample \u2192 Mann-Whitney U. "
+                                "Especially useful with outlier injection to see how "
+                                "nonparametric tests resist contamination."
+                            ),
+                        ),
+                        value=False,
+                    ),
+                    class_="pv-checks-row",
                 ),
                 ui.output_ui("pv_outlier_slider"),
-
-                # ── Wilcoxon comparison ──────────────────────────────────────
-                ui.tags.hr(style="border-color: rgba(255,255,255,0.12); margin: 6px 0;"),
-                ui.input_checkbox(
-                    "pv_wilcoxon_on",
-                    ui.TagList(
-                        "Compare with Wilcoxon\u00a0",
-                        tip(
-                            "Runs a nonparametric test alongside the t/z-test on every sample. "
-                            "One-sample & Paired \u2192 Wilcoxon signed-rank; "
-                            "Two-sample \u2192 Mann-Whitney U. "
-                            "Especially useful with outlier injection to see how "
-                            "nonparametric tests resist contamination."
-                        ),
-                    ),
-                    value=False,
-                ),
 
                 # ── Sampling controls ─────────────────────────────────────────
                 ui.div(
@@ -256,7 +256,7 @@ def pvalue_panel() -> ui.Tag:
                     ui.output_ui("pv_reject_stat_card"),
                     ui.div(
                         ui.div(
-                            "TOTAL TOTAL EXPERIMENTS\u00a0",
+                            "TOTAL EXPERIMENTS\u00a0",
                             tip("Total number of hypothesis tests simulated."),
                             class_="stat-label",
                         ),

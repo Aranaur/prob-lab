@@ -529,6 +529,27 @@ h1.main-title {
 body.light-mode .np-preset-hint--active strong { color: #ea580c; }
 body.light-mode .np-preset-hint--active { border-color: #ea580c; }
 
+/* ── p-value Explorer: compact side-by-side checkbox row ─────────────────── */
+.pv-checks-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 8px;
+  margin: 2px 0;
+}
+.pv-checks-row .shiny-input-container {
+  width: 100% !important;
+  min-width: 0;
+  margin-bottom: 0 !important;
+}
+.pv-checks-row .checkbox {
+  margin-top: 6px !important;
+  margin-bottom: 2px !important;
+}
+.pv-checks-row .checkbox label {
+  font-size: 0.82rem;
+  color: var(--c-text2);
+}
+
 /* ── Charts area ──────────────────────────────────────────────────────────── */
 .charts-area {
   flex: 1;

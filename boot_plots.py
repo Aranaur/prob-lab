@@ -328,7 +328,7 @@ def draw_boot_convergence(results, alpha, dark=True):
         fig.add_trace(go.Scatter(
             x=ns, y=lower.tolist(), mode="lines",
             line=dict(width=0), fill="tonexty",
-            fillcolor=col.replace("#", "rgba(") + ")" if False else _rgba(col, 0.12),
+            fillcolor=_rgba(col, 0.12),
             showlegend=False, hoverinfo="skip",
         ))
 

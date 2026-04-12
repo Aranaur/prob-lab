@@ -36,6 +36,10 @@ def pvalue_server(input, output, session, is_dark):
     pv_wilcoxon_rejected = reactive.value(0)
     pv_wilcoxon_pvalues: reactive.Value[deque] = reactive.value(deque(maxlen=MAX_DATA))
 
+    # Preset state
+    _pv_active_preset = reactive.value(None)
+    _pv_preset_params = reactive.value({})   # group-param overrides for pv_group_params
+
     # ── Input helpers (guard against None / 0-as-falsy) ──────────────────────
     def _safe(input_fn, default):
         try:
@@ -94,6 +98,11 @@ def pvalue_server(input, output, session, is_dark):
     @render.ui
     def pv_group_params():
         structure = input.pv_test_structure()
+        with reactive.isolate():
+            _p = _pv_preset_params()
+
+        def pval(key, default):
+            return _p.get(key, default)
 
         if structure == "one":
             sigma_col = ui.div(
@@ -106,14 +115,14 @@ def pvalue_server(input, output, session, is_dark):
                             "Used for data generation and for the z-test statistic."
                         ),
                     ),
-                    value=1.0, min=0.1, step=0.5, width="100%",
+                    value=pval("pv_sigma", 1.0), min=0.1, step=0.5, width="100%",
                 )
             )
             n_col = ui.div(
                 ui.input_numeric(
                     "pv_n",
                     ui.TagList("Sample size (n)", tip("Number of observations in the sample.")),
-                    value=10, min=2, max=500, step=1, width="100%",
+                    value=pval("pv_n", 10), min=2, max=500, step=1, width="100%",
                 )
             )
             return ui.div(
@@ -134,34 +143,33 @@ def pvalue_server(input, output, session, is_dark):
                 ui.input_numeric(
                     "pv_sigma",
                     ui.TagList("\u03c3\u00a0", tip("Standard deviation of Group A.")),
-                    value=1.0, min=0.1, step=0.5, width="100%",
+                    value=pval("pv_sigma", 1.0), min=0.1, step=0.5, width="100%",
                 ),
             ),
             ui.div(
                 ui.input_numeric(
                     "pv_sigma2",
                     ui.TagList("\u03c3\u00a0", tip("Standard deviation of Group B.")),
-                    value=1.0, min=0.1, step=0.5, width="100%",
+                    value=pval("pv_sigma2", 1.0), min=0.1, step=0.5, width="100%",
                 ),
             ),
             class_="group-params-cols",
         )
 
         if structure == "two":
-            # Use pv_n1 (not pv_n) to avoid duplicate-ID conflict with pv_n_control
             n_row = ui.div(
                 ui.div(
                     ui.input_numeric(
                         "pv_n1",
                         ui.TagList("n\u00a0", tip("Sample size of Group A.")),
-                        value=10, min=2, max=500, step=1, width="100%",
+                        value=pval("pv_n1", 10), min=2, max=500, step=1, width="100%",
                     ),
                 ),
                 ui.div(
                     ui.input_numeric(
                         "pv_n2",
                         ui.TagList("n\u00a0", tip("Sample size of Group B.")),
-                        value=10, min=2, max=500, step=1, width="100%",
+                        value=pval("pv_n2", 10), min=2, max=500, step=1, width="100%",
                     ),
                 ),
                 class_="group-params-cols",
@@ -180,14 +188,14 @@ def pvalue_server(input, output, session, is_dark):
                             "Higher \u03c1 \u2192 smaller SD of differences \u2192 more power."
                         ),
                     ),
-                    value=0.5, min=-0.99, max=0.99, step=0.1, width="100%",
+                    value=pval("pv_rho", 0.5), min=-0.99, max=0.99, step=0.1, width="100%",
                 ),
             ),
             ui.div(
                 ui.input_numeric(
                     "pv_n",
                     ui.TagList("Pairs (n)", tip("Number of paired observations.")),
-                    value=10, min=2, max=500, step=1, width="100%",
+                    value=pval("pv_n", 10), min=2, max=500, step=1, width="100%",
                 ),
             ),
             class_="group-params-cols",
@@ -197,6 +205,105 @@ def pvalue_server(input, output, session, is_dark):
     @render.ui
     def pv_n_control():
         return ui.div()
+
+    # ── Scenario presets ──────────────────────────────────────────────────────
+    _PV_PRESET_DESC = {
+        "h0": (
+            "H\u2080 true (Type\u00a0I error)",
+            "One-sample, \u03bc_true\u200a=\u200a\u03bc\u2080\u200a=\u200a0, \u03c3\u200a=\u200a1, n\u200a=\u200a30. "
+            "p-values are uniform on [0,\u00a01] \u2014 exactly \u03b1 of tests reject H\u2080. "
+            "The textbook definition of Type\u00a0I error rate.",
+        ),
+        "under": (
+            "Underpowered study",
+            "One-sample, \u03bc_true\u200a=\u200a0.2, \u03c3\u200a=\u200a1, n\u200a=\u200a10. "
+            "Real effect exists but power \u2248\u200a12\u202f%. "
+            "Most p-values exceed 0.05 \u2014 shows why small studies fail to replicate.",
+        ),
+        "largen": (
+            "Large n inflation",
+            "One-sample, \u03bc_true\u200a=\u200a0.1, \u03c3\u200a=\u200a1, n\u200a=\u200a300. "
+            "Tiny effect (d\u200a=\u200a0.1) but power \u2248\u200a95\u202f% \u2014 almost all p < 0.05. "
+            "Illustrates statistical vs practical significance.",
+        ),
+        "outlier": (
+            "Outlier disruption + Wilcoxon",
+            "One-sample, \u03bc_true\u200a=\u200a0.5, \u03c3\u200a=\u200a1, n\u200a=\u200a20, outlier on, Wilcoxon on. "
+            "A single opposing outlier pushes t-test p-values toward non-significance. "
+            "Wilcoxon signed-rank resists the contamination.",
+        ),
+        "paired": (
+            "Paired design efficiency",
+            "Paired, \u03bc_true\u200a=\u200a0.3, \u03c3\u200a=\u200a1, \u03c1\u200a=\u200a0.7, n\u200a=\u200a20. "
+            "High within-pair correlation shrinks SD of differences. "
+            "Power is much greater than an independent two-sample design with the same n.",
+        ),
+    }
+
+    def _pv_set_preset(structure, mu0, mu_true, alpha, method,
+                       outlier=False, wilcoxon=False, **params):
+        _pv_preset_params.set(params)
+        ui.update_select("pv_test_structure", selected=structure)
+        ui.update_numeric("pv_mu0",           value=mu0)
+        ui.update_numeric("pv_mu_true",       value=mu_true)
+        ui.update_slider("pv_alpha",          value=alpha)
+        ui.update_select("pv_test_method",    selected=method)
+        ui.update_checkbox("pv_outlier_on",   value=outlier)
+        ui.update_checkbox("pv_wilcoxon_on",  value=wilcoxon)
+        # Belt-and-suspenders for same-structure case (inputs already in DOM)
+        for param_id, value in params.items():
+            ui.update_numeric(param_id, value=value)
+
+    @reactive.effect
+    @reactive.event(input.pv_pre_h0)
+    def _pv_pr_h0():
+        _pv_active_preset.set("h0")
+        _pv_set_preset("one", mu0=0.0, mu_true=0.0, alpha=0.05, method="t",
+                       pv_sigma=1.0, pv_n=30)
+
+    @reactive.effect
+    @reactive.event(input.pv_pre_under)
+    def _pv_pr_under():
+        _pv_active_preset.set("under")
+        _pv_set_preset("one", mu0=0.0, mu_true=0.2, alpha=0.05, method="t",
+                       pv_sigma=1.0, pv_n=10)
+
+    @reactive.effect
+    @reactive.event(input.pv_pre_largen)
+    def _pv_pr_largen():
+        _pv_active_preset.set("largen")
+        _pv_set_preset("one", mu0=0.0, mu_true=0.1, alpha=0.05, method="t",
+                       pv_sigma=1.0, pv_n=300)
+
+    @reactive.effect
+    @reactive.event(input.pv_pre_outlier)
+    def _pv_pr_outlier():
+        _pv_active_preset.set("outlier")
+        _pv_set_preset("one", mu0=0.0, mu_true=0.5, alpha=0.05, method="t",
+                       outlier=True, wilcoxon=True,
+                       pv_sigma=1.0, pv_n=20)
+
+    @reactive.effect
+    @reactive.event(input.pv_pre_paired)
+    def _pv_pr_paired():
+        _pv_active_preset.set("paired")
+        _pv_set_preset("paired", mu0=0.0, mu_true=0.3, alpha=0.05, method="t",
+                       pv_sigma=1.0, pv_sigma2=1.0, pv_rho=0.7, pv_n=20)
+
+    @render.ui
+    def pv_preset_desc():
+        key = _pv_active_preset()
+        if key is None:
+            return ui.div(
+                "\u2190 Select a preset to see what it demonstrates.",
+                class_="np-preset-hint",
+            )
+        title, body = _PV_PRESET_DESC[key]
+        return ui.div(
+            ui.tags.strong(title + ": "),
+            body,
+            class_="np-preset-hint np-preset-hint--active",
+        )
 
     # ── Sample size ± ─────────────────────────────────────────────────────────
     @reactive.effect

@@ -120,7 +120,25 @@ app_ui = ui.page_fluid(
                         width="100%",
                     ),
 
-
+                    # Scenario presets
+                    ui.tags.label(
+                        "Scenario presets",
+                        style="font-weight:500; color:var(--c-text3); font-size:0.82rem; margin-bottom:2px;",
+                    ),
+                    ui.div(
+                        ui.input_action_button("ci_pre_ideal",   "Ideal",
+                                               class_="btn-ctrl btn-preset"),
+                        ui.input_action_button("ci_pre_skewed",  "Skewed",
+                                               class_="btn-ctrl btn-preset"),
+                        ui.input_action_button("ci_pre_rare",    "Rare events",
+                                               class_="btn-ctrl btn-preset"),
+                        ui.input_action_button("ci_pre_boot",    "Bootstrap",
+                                               class_="btn-ctrl btn-preset"),
+                        ui.input_action_button("ci_pre_poisson", "Poisson",
+                                               class_="btn-ctrl btn-preset"),
+                        class_="np-preset-grid",
+                    ),
+                    ui.output_ui("ci_preset_desc"),
 
                     # Sampling controls
                     ui.div(

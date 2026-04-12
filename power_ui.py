@@ -92,19 +92,22 @@ def power_panel() -> ui.Tag:
 
 
                 # Presets
-                ui.input_select(
-                    "pw_preset",
-                    ui.TagList("Scenario presets",
-                               tip("Load typical parameter sets for common study designs.")),
-                    choices={
-                        "":         "\u2014 Custom \u2014",
-                        "clinical": "Clinical trial  (d\u200a=\u200a0.3, \u03b1\u200a=\u200a0.01)",
-                        "ab_test":  "A/B test  (d\u200a=\u200a0.2, two-sample)",
-                        "psych":    "Psychology  (d\u200a=\u200a0.5, \u03b1\u200a=\u200a0.05)",
-                        "small":    "Small effect  (d\u200a=\u200a0.2, power\u200a=\u200a0.8)",
-                    },
-                    selected="", width="100%",
+                ui.tags.label(
+                    "Scenario presets",
+                    style="font-weight:500; color:var(--c-text3); font-size:0.82rem; margin-bottom:2px;",
                 ),
+                ui.div(
+                    ui.input_action_button("pw_pre_clinical", "Clinical",
+                                           class_="btn-ctrl btn-preset"),
+                    ui.input_action_button("pw_pre_ab",       "A/B Test",
+                                           class_="btn-ctrl btn-preset"),
+                    ui.input_action_button("pw_pre_psych",    "Psych",
+                                           class_="btn-ctrl btn-preset"),
+                    ui.input_action_button("pw_pre_small",    "Small eff.",
+                                           class_="btn-ctrl btn-preset"),
+                    class_="np-preset-grid",
+                ),
+                ui.output_ui("pw_preset_desc"),
 
                 # Footer
                 ui.div(

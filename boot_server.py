@@ -250,59 +250,44 @@ def boot_server(input, output, session, is_dark):
 
     # ── Presets ─────────────────────────────────────────────────────────────
     _PRESET_DESC = {
-        "skewed_median": {
-            "title": "Skewed + Median",
-            "body":  "Log-normal data with median. BCa corrects for "
-                     "asymmetric bias \u2014 Percentile CI is shifted.",
-        },
-        "small_heavy": {
-            "title": "Small n + Heavy tails",
-            "body":  "t(df\u2009=\u20093) with n\u2009=\u200915.  "
-                     "Normal CI is too narrow; BCa handles skewness.",
-        },
-        "bimodal": {
-            "title": "Bimodal",
-            "body":  "Mixture of two normals. Bootstrap works; "
-                     "Normal CI assumes unimodality and under-covers.",
-        },
-        "tiny": {
-            "title": "n\u2009=\u20095 extreme",
-            "body":  "Only 5 observations. All methods are unreliable "
-                     "\u2014 shows the limits of resampling.",
-        },
+        "skewed_median": (
+            "Skewed + Median",
+            "Log-normal data, median, n\u2009=\u200930. "
+            "The bootstrap distribution is asymmetric. "
+            "BCa corrects for bias \u2014 Percentile CI is visibly shifted away from the true median.",
+        ),
+        "small_heavy": (
+            "Small n + Heavy tails",
+            "t(df\u2009=\u20093) data, mean, n\u2009=\u200915. "
+            "Heavy tails inflate variability. "
+            "Normal CI is too narrow; BCa partially compensates for skewness.",
+        ),
+        "bimodal": (
+            "Bimodal mixture",
+            "Two-component normal mixture, mean, n\u2009=\u200950. "
+            "The bootstrap distribution is bimodal. "
+            "Normal CI assumes unimodality and under-covers in both tails.",
+        ),
+        "tiny": (
+            "n\u2009=\u20095 extreme",
+            "Normal data, std deviation, n\u2009=\u20095. "
+            "With only 5 observations all CI methods are unreliable. "
+            "Shows the hard limits of resampling \u2014 B resamples cannot rescue tiny n.",
+        ),
     }
-
-    @render.ui
-    def boot_presets_ui():
-        return ui.div(
-            ui.tags.label("Presets", class_="presets-label"),
-            ui.div(
-                ui.input_action_button("boot_pre_skewed", "Skewed+Med",
-                                       class_="btn-ctrl btn-sample btn-flex"),
-                ui.input_action_button("boot_pre_heavy", "Heavy",
-                                       class_="btn-ctrl btn-sample btn-flex"),
-                class_="sidebar-btn-row",
-                style="margin-bottom: 0.5rem;",
-            ),
-            ui.div(
-                ui.input_action_button("boot_pre_bimodal", "Bimodal",
-                                       class_="btn-ctrl btn-sample btn-flex"),
-                ui.input_action_button("boot_pre_tiny", "n=5",
-                                       class_="btn-ctrl btn-sample btn-flex"),
-                class_="sidebar-btn-row",
-            ),
-            ui.output_ui("boot_preset_desc"),
-        )
 
     @render.ui
     def boot_preset_desc():
         key = _active_preset()
         if key is None or key not in _PRESET_DESC:
-            return ui.div("Select a preset for a pathological case.",
-                          class_="np-preset-hint")
-        d = _PRESET_DESC[key]
+            return ui.div(
+                "\u2190 Select a preset to see what it demonstrates.",
+                class_="np-preset-hint",
+            )
+        title, body = _PRESET_DESC[key]
         return ui.div(
-            ui.tags.strong(d["title"]), ui.tags.br(), d["body"],
+            ui.tags.strong(title + ": "),
+            body,
             class_="np-preset-hint np-preset-hint--active",
         )
 

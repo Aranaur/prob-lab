@@ -115,7 +115,22 @@ def boot_panel() -> ui.Tag:
                 ),
 
                 # Presets
-                ui.output_ui("boot_presets_ui"),
+                ui.tags.label(
+                    "Presets",
+                    style="font-weight:500; color:var(--c-text3); font-size:0.82rem; margin-bottom:2px;",
+                ),
+                ui.div(
+                    ui.input_action_button("boot_pre_skewed", "Skewed+Med",
+                                           class_="btn-ctrl btn-preset"),
+                    ui.input_action_button("boot_pre_heavy",  "Heavy tails",
+                                           class_="btn-ctrl btn-preset"),
+                    ui.input_action_button("boot_pre_bimodal", "Bimodal",
+                                           class_="btn-ctrl btn-preset"),
+                    ui.input_action_button("boot_pre_tiny",   "n\u2009=\u20095",
+                                           class_="btn-ctrl btn-preset"),
+                    class_="np-preset-grid",
+                ),
+                ui.output_ui("boot_preset_desc"),
 
                 # ── Sampling controls ────────────────────────────────────────
                 ui.div(

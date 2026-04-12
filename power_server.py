@@ -178,103 +178,162 @@ def power_server(input, output, session, is_dark):
     def pw_input_d():
         if input.pw_solve_for() == "d":
             return ui.div()
+        with reactive.isolate():
+            _p = _pw_preset_params()
         return ui.input_slider(
             "pw_d",
             ui.TagList("Cohen\u2019s d",
                        tip("Standardised effect size: (|\u03bc\u2081\u2212\u03bc\u2080|)/\u03c3. "
                            "Small\u200a\u2248\u200a0.2, medium\u200a\u2248\u200a0.5, large\u200a\u2248\u200a0.8.")),
-            min=0, max=2, value=0.5, step=0.01, width="100%",
+            min=0, max=2, value=_p.get("pw_d", 0.5), step=0.01, width="100%",
         )
 
     @render.ui
     def pw_input_n():
         if input.pw_solve_for() == "n":
             return ui.div()
-            
+        with reactive.isolate():
+            _p = _pw_preset_params()
+
         n1_input = ui.div(
             ui.input_numeric(
                 "pw_n",
                 ui.TagList("Sample size (n\u2081)" if input.pw_test_type() == "two_t" else "Sample size (n)",
                            tip("Number of observations. "
                                "For two-sample tests this is the size of group\u00a01.")),
-                value=30, min=2, max=5000, step=1, width="100%",
+                value=_p.get("pw_n", 30), min=2, max=5000, step=1, width="100%",
             )
         )
-        
+
         if input.pw_test_type() == "two_t":
             n2_input = ui.div(
                 ui.input_numeric(
                     "pw_n2",
                     ui.TagList("Sample size (n\u2082)",
                                tip("Sample size for the second group.")),
-                    value=30, min=2, max=5000, step=1, width="100%",
+                    value=_p.get("pw_n2", 30), min=2, max=5000, step=1, width="100%",
                 )
             )
             return ui.div(ui.div(n1_input, n2_input, class_="group-params-cols"), class_="group-params-block")
-            
-        return ui.div(
-            n1_input,
-            class_="slider-row",
-        )
+
+        return ui.div(n1_input, class_="slider-row")
 
     @render.ui
     def pw_input_alpha():
         if input.pw_solve_for() == "alpha":
             return ui.div()
+        with reactive.isolate():
+            _p = _pw_preset_params()
         return ui.input_slider(
             "pw_alpha",
             ui.TagList("\u03b1 (significance level)",
                        tip("Probability of Type\u00a0I error (false positive).")),
-            min=0.005, max=0.2, value=0.05, step=0.005, width="100%",
+            min=0.005, max=0.2, value=_p.get("pw_alpha", 0.05), step=0.005, width="100%",
         )
 
     @render.ui
     def pw_input_power():
         if input.pw_solve_for() == "power":
             return ui.div()
+        with reactive.isolate():
+            _p = _pw_preset_params()
         return ui.input_slider(
             "pw_power",
             ui.TagList("Power (1\u2212\u03b2)",
                        tip("Probability of correctly rejecting a false H\u2080.")),
-            min=0.50, max=0.999, value=0.80, step=0.005, width="100%",
+            min=0.50, max=0.999, value=_p.get("pw_power", 0.80), step=0.005, width="100%",
         )
 
 
     # ── Presets ───────────────────────────────────────────────────────────────
+    _active_preset   = reactive.value(None)
+    _pw_preset_params = reactive.value({})   # param overrides for pw_input_* re-renders
+
+    _PRESET_DESC = {
+        "clinical": (
+            "Clinical trial",
+            "d\u200a=\u200a0.3, \u03b1\u200a=\u200a0.01, n\u200a=\u200a100, one-sample t. "
+            "Conservative \u03b1 protects patients from false positives. "
+            "Even a small effect size requires many participants.",
+        ),
+        "ab_test": (
+            "A/B test",
+            "d\u200a=\u200a0.2, \u03b1\u200a=\u200a0.05, n\u200a=\u200a200, two-sample t. "
+            "Typical web experiment: small effects, large user pools. "
+            "Notice how much bigger n must be for the two-sample design.",
+        ),
+        "psych": (
+            "Psychology",
+            "d\u200a=\u200a0.5, \u03b1\u200a=\u200a0.05, n\u200a=\u200a50, one-sample t. "
+            "Medium effect by Cohen\u2019s convention. "
+            "Many classic psychology studies used n\u200a\u2248\u200a20\u201330 \u2014 severely underpowered.",
+        ),
+        "small": (
+            "Small effect \u2192 n",
+            "d\u200a=\u200a0.2, \u03b1\u200a=\u200a0.05, target power\u200a=\u200a0.80. "
+            "Solve for n: shows how many observations a small effect demands. "
+            "Illustrates why underpowered replication studies often fail.",
+        ),
+    }
+
+    def _set_preset(d=None, n=None, alpha=None, power=None,
+                    test_type="one_t", alternative="two-sided", solve_for="power"):
+        # Populate preset params BEFORE ui.update_select so that any re-render
+        # triggered by a solve_for / test_type change reads the correct values.
+        params = {}
+        if d     is not None: params["pw_d"]     = d
+        if n     is not None: params["pw_n"]     = n; params["pw_n2"] = n
+        if alpha is not None: params["pw_alpha"] = alpha
+        if power is not None: params["pw_power"] = power
+        _pw_preset_params.set(params)
+
+        # Belt-and-suspenders: also send update messages for same-structure cases.
+        if d       is not None: ui.update_slider("pw_d",          value=d)
+        if n       is not None: ui.update_numeric("pw_n",         value=n)
+        if alpha   is not None: ui.update_slider("pw_alpha",      value=alpha)
+        if power   is not None: ui.update_slider("pw_power",      value=power)
+        ui.update_select("pw_test_type",   selected=test_type)
+        ui.update_select("pw_alternative", selected=alternative)
+        ui.update_select("pw_solve_for",   selected=solve_for)
+
     @reactive.effect
-    @reactive.event(input.pw_preset)
-    def _apply_preset():
-        p = input.pw_preset()
-        if not p:
-            return
-        if p == "clinical":
-            ui.update_slider("pw_d", value=0.3)
-            ui.update_numeric("pw_n", value=100)
-            ui.update_slider("pw_alpha", value=0.01)
-            ui.update_select("pw_test_type", selected="one_t")
-            ui.update_select("pw_alternative", selected="two-sided")
-            ui.update_select("pw_solve_for", selected="power")
-        elif p == "ab_test":
-            ui.update_slider("pw_d", value=0.2)
-            ui.update_numeric("pw_n", value=200)
-            ui.update_slider("pw_alpha", value=0.05)
-            ui.update_select("pw_test_type", selected="two_t")
-            ui.update_select("pw_alternative", selected="two-sided")
-            ui.update_select("pw_solve_for", selected="power")
-        elif p == "psych":
-            ui.update_slider("pw_d", value=0.5)
-            ui.update_numeric("pw_n", value=50)
-            ui.update_slider("pw_alpha", value=0.05)
-            ui.update_select("pw_test_type", selected="one_t")
-            ui.update_select("pw_alternative", selected="two-sided")
-            ui.update_select("pw_solve_for", selected="power")
-        elif p == "small":
-            ui.update_slider("pw_d", value=0.2)
-            ui.update_slider("pw_alpha", value=0.05)
-            ui.update_slider("pw_power", value=0.80)
-            ui.update_select("pw_test_type", selected="one_t")
-            ui.update_select("pw_alternative", selected="two-sided")
-            ui.update_select("pw_solve_for", selected="n")
+    @reactive.event(input.pw_pre_clinical)
+    def _pr_clinical():
+        _active_preset.set("clinical")
+        _set_preset(d=0.3, n=100, alpha=0.01, test_type="one_t", solve_for="power")
+
+    @reactive.effect
+    @reactive.event(input.pw_pre_ab)
+    def _pr_ab():
+        _active_preset.set("ab_test")
+        _set_preset(d=0.2, n=200, alpha=0.05, test_type="two_t", solve_for="power")
+
+    @reactive.effect
+    @reactive.event(input.pw_pre_psych)
+    def _pr_psych():
+        _active_preset.set("psych")
+        _set_preset(d=0.5, n=50, alpha=0.05, test_type="one_t", solve_for="power")
+
+    @reactive.effect
+    @reactive.event(input.pw_pre_small)
+    def _pr_small():
+        _active_preset.set("small")
+        _set_preset(d=0.2, alpha=0.05, power=0.80, test_type="one_t", solve_for="n")
+
+    @render.ui
+    def pw_preset_desc():
+        key = _active_preset()
+        if key is None:
+            return ui.div(
+                "\u2190 Select a preset to see what it demonstrates.",
+                class_="np-preset-hint",
+            )
+        title, body = _PRESET_DESC[key]
+        return ui.div(
+            ui.tags.strong(title + ": "),
+            body,
+            class_="np-preset-hint np-preset-hint--active",
+        )
 
     # ── Core computed parameters ──────────────────────────────────────────────
     @reactive.calc

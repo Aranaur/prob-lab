@@ -67,11 +67,115 @@ def server(input, output, session):
     last_sample: reactive.Value[list] = reactive.value([])
     is_playing = reactive.value(False)
     speed_ms = reactive.value(0.5)     # seconds
+    _ci_active_preset  = reactive.value(None)
+    _ci_preset_params  = reactive.value({})   # dist-specific param overrides for ci_dynamic_params
+    _ci_preset_stat    = reactive.value(None) # statistic override for ci_statistic_ui
+    _ci_preset_method  = reactive.value(None) # method override for _sync_ci_method
+
+    # ── CI Scenario presets ───────────────────────────────────────────────
+    _CI_PRESET_DESC = {
+        "ideal": (
+            "Ideal conditions",
+            "Normal(0,\u00a01), n\u200a=\u200a30, t-interval. "
+            "Textbook case: CLT is satisfied, coverage \u2248 nominal. "
+            "Baseline for comparing all other scenarios.",
+        ),
+        "skewed": (
+            "Skewed + small n",
+            "Log-normal(\u03bc\u2097\u2099\u200a=\u200a0, \u03c3\u2097\u2099\u200a=\u200a1), n\u200a=\u200a15, t-interval. "
+            "Strong right skew and few observations \u2014 CLT has not yet kicked in. "
+            "t-interval systematically under-covers.",
+        ),
+        "rare": (
+            "Rare events",
+            "Binomial(m\u200a=\u200a40, p\u200a=\u200a0.05), proportion, Wald CI. "
+            "np\u200a=\u200a2\u200a<\u200a5: normal approximation breaks down. "
+            "Wald CI severely under-covers \u2014 switch to Wilson or Clopper-Pearson.",
+        ),
+        "boot": (
+            "Bootstrap rescue",
+            "Exponential(\u03bb\u200a=\u200a1), n\u200a=\u200a10, Bootstrap. "
+            "Skewed distribution with very small n \u2014 t-interval fails here. "
+            "Bootstrap outperforms t-interval by resampling without distributional assumptions.",
+        ),
+        "poisson": (
+            "Poisson counts",
+            "Poisson(\u03bb\u200a=\u200a2), n\u200a=\u200a20, t-interval. "
+            "Discrete, right-skewed counts with small \u03bb. "
+            "t-interval under-covers because the sampling distribution is not yet symmetric.",
+        ),
+    }
+
+    def _ci_set_preset(dist, method, n, statistic="mean", **params):
+        # Store values in reactive vars so re-rendered dynamic UIs pick them up
+        _ci_preset_stat.set(statistic)
+        _ci_preset_method.set(method)
+        _ci_preset_params.set({"ci_sample_size": n, **params})
+        # Trigger distribution change (re-renders ci_dynamic_params + ci_statistic_ui)
+        ui.update_select("ci_pop_dist", selected=dist)
+        # Belt-and-suspenders: also send direct updates for same-dist case
+        # (when dist doesn't change, the renderers won't re-fire, so these are needed)
+        ui.update_select("ci_statistic",    selected=statistic)
+        ui.update_select("ci_method",       selected=method)
+        ui.update_numeric("ci_sample_size", value=n)
+
+    @reactive.effect
+    @reactive.event(input.ci_pre_ideal)
+    def _ci_pr_ideal():
+        _ci_active_preset.set("ideal")
+        _ci_set_preset("normal", "t", 30,
+                       ci_pop_mean=0.0, ci_pop_sd=1.0)
+
+    @reactive.effect
+    @reactive.event(input.ci_pre_skewed)
+    def _ci_pr_skewed():
+        _ci_active_preset.set("skewed")
+        _ci_set_preset("lognormal", "t", 15,
+                       ci_lnorm_mu=0.0, ci_lnorm_sigma=1.0)
+
+    @reactive.effect
+    @reactive.event(input.ci_pre_rare)
+    def _ci_pr_rare():
+        _ci_active_preset.set("rare")
+        _ci_set_preset("binomial", "wald", 30,
+                       statistic="proportion",
+                       ci_binom_n=40, ci_binom_p=0.05)
+
+    @reactive.effect
+    @reactive.event(input.ci_pre_boot)
+    def _ci_pr_boot():
+        _ci_active_preset.set("boot")
+        _ci_set_preset("exponential", "bootstrap", 10,
+                       ci_pop_lambda=1.0)
+
+    @reactive.effect
+    @reactive.event(input.ci_pre_poisson)
+    def _ci_pr_poisson():
+        _ci_active_preset.set("poisson")
+        _ci_set_preset("poisson", "t", 20,
+                       ci_pois_lam=2.0)
+
+    @render.ui
+    def ci_preset_desc():
+        key = _ci_active_preset()
+        if key is None:
+            return ui.div(
+                "\u2190 Select a preset to see what it demonstrates.",
+                class_="np-preset-hint",
+            )
+        title, body = _CI_PRESET_DESC[key]
+        return ui.div(
+            ui.tags.strong(title + ": "),
+            body,
+            class_="np-preset-hint np-preset-hint--active",
+        )
 
     # ── Dynamic statistic dropdown (adds Proportion for Binomial) ────────────
     @render.ui
     def ci_statistic_ui():
         dist = input.ci_pop_dist()
+        with reactive.isolate():
+            preset_stat = _ci_preset_stat()
         choices = {
             "mean":       "Mean",
             "median":     "Median",
@@ -85,6 +189,9 @@ def server(input, output, session):
             selected = current if current in choices else "mean"
         except Exception:
             selected = "mean"
+        # Preset overrides the preserved selection when re-rendering on dist change
+        if preset_stat is not None and preset_stat in choices:
+            selected = preset_stat
         return ui.input_select(
             "ci_statistic",
             ui.TagList("Statistic", tip(
@@ -102,26 +209,30 @@ def server(input, output, session):
     @reactive.event(input.ci_statistic)
     def _sync_ci_method():
         stat = input.ci_statistic()
+        with reactive.isolate():
+            pm = _ci_preset_method()
         if stat in ("median", "variance", "percentile"):
             ui.update_select("ci_method",
                 choices={"bootstrap": "Bootstrap   (percentile, B\u200a=\u200a500)"},
                 selected="bootstrap")
         elif stat == "proportion":
+            valid = {"wald", "wilson", "clopper_pearson"}
             ui.update_select("ci_method",
                 choices={
                     "wald":            "Wald  (normal approx.)",
                     "wilson":          "Wilson  (score, recommended)",
                     "clopper_pearson": "Clopper-Pearson  (exact)",
                 },
-                selected="wald")
+                selected=pm if pm in valid else "wald")
         else:
+            valid = {"t", "z", "bootstrap"}
             ui.update_select("ci_method",
                 choices={
                     "t":         "t-interval  (unknown \u03c3)",
                     "z":         "z-interval  (known \u03c3)",
                     "bootstrap": "Bootstrap   (percentile, B\u200a=\u200a500)",
                 },
-                selected="t")
+                selected=pm if pm in valid else "t")
 
     # ── Reset ci_statistic to "mean" when switching away from Binomial ────────
     @reactive.effect
@@ -150,57 +261,62 @@ def server(input, output, session):
     @render.ui
     def ci_dynamic_params():
         dist = input.ci_pop_dist()
-        
+        with reactive.isolate():
+            _p = _ci_preset_params()
+
+        def pval(key, default):
+            return _p.get(key, default)
+
         n_col = ui.div(
             ui.input_numeric("ci_sample_size",
                 ui.TagList("Sample size (n)\u00a0", tip("Number of observations in each sample.")),
-                value=5, min=2, max=500, step=1, width="100%")
+                value=pval("ci_sample_size", 5), min=2, max=500, step=1, width="100%")
         )
 
         if dist == "normal":
             r1 = ui.div(
-                ui.div(ui.input_numeric("ci_pop_mean", ui.TagList("Population \u03bc\u00a0", tip("The expected value (center) of the normal distribution.")), value=0.0, step=0.5, width="100%")),
-                ui.div(ui.input_numeric("ci_pop_sd", ui.TagList("Population \u03c3\u00a0", tip("Measures the spread of the distribution around the mean.")), value=1.0, min=0.1, step=0.5, width="100%")),
+                ui.div(ui.input_numeric("ci_pop_mean", ui.TagList("Population \u03bc\u00a0", tip("The expected value (center) of the normal distribution.")), value=pval("ci_pop_mean", 0.0), step=0.5, width="100%")),
+                ui.div(ui.input_numeric("ci_pop_sd", ui.TagList("Population \u03c3\u00a0", tip("Measures the spread of the distribution around the mean.")), value=pval("ci_pop_sd", 1.0), min=0.1, step=0.5, width="100%")),
                 class_="group-params-cols"
             )
             return ui.div(r1, ui.div(n_col, ui.div(), class_="group-params-cols"), class_="group-params-block")
-            
+
         elif dist == "uniform":
             r1 = ui.div(
-                ui.div(ui.input_numeric("ci_pop_min", ui.TagList("Minimum (a)\u00a0", tip("The lower bound of the uniform distribution.")), value=0.0, step=0.5, width="100%")),
-                ui.div(ui.input_numeric("ci_pop_max", ui.TagList("Maximum (b)\u00a0", tip("The upper bound of the uniform distribution.")), value=1.0, step=0.5, width="100%")),
+                ui.div(ui.input_numeric("ci_pop_min", ui.TagList("Minimum (a)\u00a0", tip("The lower bound of the uniform distribution.")), value=pval("ci_pop_min", 0.0), step=0.5, width="100%")),
+                ui.div(ui.input_numeric("ci_pop_max", ui.TagList("Maximum (b)\u00a0", tip("The upper bound of the uniform distribution.")), value=pval("ci_pop_max", 1.0), step=0.5, width="100%")),
                 class_="group-params-cols"
             )
             return ui.div(r1, ui.div(n_col, ui.div(), class_="group-params-cols"), class_="group-params-block")
-            
+
         elif dist == "exponential":
             r1 = ui.div(
-                ui.div(ui.input_numeric("ci_pop_lambda", ui.TagList("Rate (\u03bb)\u00a0", tip("The rate parameter. Higher \u03bb means more frequent events and a smaller mean (1/\u03bb).")), value=1.0, min=0.1, step=0.5, width="100%")),
+                ui.div(ui.input_numeric("ci_pop_lambda", ui.TagList("Rate (\u03bb)\u00a0", tip("The rate parameter. Higher \u03bb means more frequent events and a smaller mean (1/\u03bb).")), value=pval("ci_pop_lambda", 1.0), min=0.1, step=0.5, width="100%")),
                 n_col,
                 class_="group-params-cols"
             )
             return ui.div(r1, class_="group-params-block")
-            
+
         elif dist == "lognormal":
             r1 = ui.div(
-                ui.div(ui.input_numeric("ci_lnorm_mu", ui.TagList("Log-mean (\u03bc\u2097\u2099)\u00a0", tip("Mean of the underlying normal distribution on the log scale.")), value=0.0, step=0.25, width="100%")),
-                ui.div(ui.input_numeric("ci_lnorm_sigma", ui.TagList("Log-std (\u03c3\u2097\u2099)\u00a0", tip("Std dev on the log scale. Larger values give stronger right skew.")), value=0.5, min=0.1, max=3.0, step=0.25, width="100%")),
+                ui.div(ui.input_numeric("ci_lnorm_mu", ui.TagList("Log-mean (\u03bc\u2097\u2099)\u00a0", tip("Mean of the underlying normal distribution on the log scale.")), value=pval("ci_lnorm_mu", 0.0), step=0.25, width="100%")),
+                ui.div(ui.input_numeric("ci_lnorm_sigma", ui.TagList("Log-std (\u03c3\u2097\u2099)\u00a0", tip("Std dev on the log scale. Larger values give stronger right skew.")), value=pval("ci_lnorm_sigma", 0.5), min=0.1, max=3.0, step=0.25, width="100%")),
                 class_="group-params-cols"
             )
             return ui.div(r1, ui.div(n_col, ui.div(), class_="group-params-cols"), class_="group-params-block")
-            
+
         elif dist == "poisson":
             r1 = ui.div(
-                ui.div(ui.input_numeric("ci_pois_lam", ui.TagList("Rate (\u03bb)\u00a0", tip("Expected number of events. Both mean and variance equal \u03bb.")), value=3.0, min=0.1, step=0.5, width="100%")),
+                ui.div(ui.input_numeric("ci_pois_lam", ui.TagList("Rate (\u03bb)\u00a0", tip("Expected number of events. Both mean and variance equal \u03bb.")), value=pval("ci_pois_lam", 3.0), min=0.1, step=0.5, width="100%")),
                 n_col,
                 class_="group-params-cols"
             )
             return ui.div(r1, class_="group-params-block")
-            
+
         elif dist == "binomial":
             r1 = ui.div(
-                ui.div(ui.input_numeric("ci_binom_n", ui.TagList("Trials (m)\u00a0", tip("Number of independent Bernoulli trials per observation.")), value=10, min=1, max=500, step=1, width="100%")),
-                ui.div(ui.input_numeric("ci_binom_p", ui.TagList("Probability (p)\u00a0", tip("Probability of success on each trial (0 < p < 1).")), value=0.5, min=0.01, max=0.99, step=0.05, width="100%")),
+                ui.div(ui.input_numeric("ci_binom_n", ui.TagList("Trials (m)\u00a0", tip("Number of independent Bernoulli trials per observation.")), value=pval("ci_binom_n", 10), min=1, max=500, step=1, width="100%")),
+                ui.div(ui.input_numeric("ci_binom_p", ui.TagList("Probability (p)\u00a0", tip("Probability of success on each trial (0 < p < 1).")), value=pval("ci_binom_p", 0.5), min=0.01, max=0.99, step=0.05, width="100%")),
                 class_="group-params-cols"
             )
             return ui.div(r1, ui.div(n_col, ui.div(), class_="group-params-cols"), class_="group-params-block")

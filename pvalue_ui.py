@@ -140,6 +140,26 @@ def pvalue_panel() -> ui.Tag:
                     width="100%",
                 ),
 
+                # Scenario presets
+                ui.tags.label(
+                    "Scenario presets",
+                    style="font-weight:500; color:var(--c-text3); font-size:0.82rem; margin-bottom:2px;",
+                ),
+                ui.div(
+                    ui.input_action_button("pv_pre_h0",      "H\u2080 true",
+                                           class_="btn-ctrl btn-preset"),
+                    ui.input_action_button("pv_pre_under",   "Underpowered",
+                                           class_="btn-ctrl btn-preset"),
+                    ui.input_action_button("pv_pre_largen",  "Large n",
+                                           class_="btn-ctrl btn-preset"),
+                    ui.input_action_button("pv_pre_outlier", "Outlier",
+                                           class_="btn-ctrl btn-preset"),
+                    ui.input_action_button("pv_pre_paired",  "Paired",
+                                           class_="btn-ctrl btn-preset"),
+                    class_="np-preset-grid",
+                ),
+                ui.output_ui("pv_preset_desc"),
+
                 # ── Outlier injection ─────────────────────────────────────────
                 ui.tags.hr(style="border-color: rgba(255,255,255,0.12); margin: 6px 0;"),
                 ui.input_checkbox(

@@ -28,6 +28,23 @@ def power_panel() -> ui.Tag:
                     class_="info-banner-text",
                 ),
 
+                # Metric type toggle
+                ui.input_select(
+                    "pw_metric_type",
+                    ui.TagList(
+                        "Metric type",
+                        tip("Continuous: differences in means (Cohen\u2019s d). "
+                            "Proportions: differences in rates (p\u2080 vs p\u2081). "
+                            "Ratio: ratio metrics X/Y via Delta Method."),
+                    ),
+                    choices={
+                        "continuous": "Continuous (means)",
+                        "proportion": "Proportions (rates)",
+                        "ratio":      "Ratio (delta method)",
+                    },
+                    selected="continuous", width="100%",
+                ),
+
                 # Solve for
                 ui.input_select(
                     "pw_solve_for",
@@ -49,22 +66,8 @@ def power_panel() -> ui.Tag:
                 # Computed result — shown right after "Solve for"
                 ui.output_ui("pw_computed_result"),
 
-                # Test type
-                ui.input_select(
-                    "pw_test_type",
-                    ui.TagList(
-                        "Test type",
-                        tip("Z-test uses known \u03c3. "
-                            "t-tests estimate \u03c3 from data, giving slightly less power."),
-                    ),
-                    choices={
-                        "one_z":    "One-sample Z",
-                        "one_t":    "One-sample t",
-                        "two_t":    "Two-sample t (independent)",
-                        "paired_t": "Paired t",
-                    },
-                    selected="one_t", width="100%",
-                ),
+                # Test type — dynamic choices per metric type
+                ui.output_ui("pw_test_type_ui"),
 
                 # Alternative
                 ui.input_select(
@@ -78,7 +81,7 @@ def power_panel() -> ui.Tag:
                     selected="two-sided", width="100%",
                 ),
 
-                # Effect size d — input or hidden when computed
+                # Effect size d (continuous) or p₀/p₁ (proportion) — dynamic
                 ui.output_ui("pw_input_d"),
 
                 # Sample size — input or hidden when computed
@@ -91,22 +94,8 @@ def power_panel() -> ui.Tag:
                 ui.output_ui("pw_input_power"),
 
 
-                # Presets
-                ui.tags.label(
-                    "Scenario presets",
-                    style="font-weight:500; color:var(--c-text3); font-size:0.82rem; margin-bottom:2px;",
-                ),
-                ui.div(
-                    ui.input_action_button("pw_pre_clinical", "Clinical",
-                                           class_="btn-ctrl btn-preset"),
-                    ui.input_action_button("pw_pre_ab",       "A/B Test",
-                                           class_="btn-ctrl btn-preset"),
-                    ui.input_action_button("pw_pre_psych",    "Psych",
-                                           class_="btn-ctrl btn-preset"),
-                    ui.input_action_button("pw_pre_small",    "Small eff.",
-                                           class_="btn-ctrl btn-preset"),
-                    class_="np-preset-grid",
-                ),
+                # Presets — dynamic per metric type
+                ui.output_ui("pw_presets_ui"),
                 ui.output_ui("pw_preset_desc"),
 
                 # Footer
@@ -125,50 +114,12 @@ def power_panel() -> ui.Tag:
             # ── RIGHT MAIN PANEL ─────────────────────────────────────────────
             ui.div(
 
-                # Stats row
-                ui.div(
-                    ui.div(
-                        ui.div(
-                            "EFFECT SIZE (d)\u00a0",
-                            tip("Cohen\u2019s d: the standardised distance between H\u2080 and H\u2081."),
-                            class_="stat-label",
-                        ),
-                        ui.div(ui.output_text("pw_stat_d", inline=True), class_="stat-value pw-d"),
-                        class_="stat-card",
-                    ),
-                    ui.div(
-                        ui.div(
-                            "SAMPLE SIZE (n)\u00a0",
-                            tip("Number of observations per group."),
-                            class_="stat-label",
-                        ),
-                        ui.div(ui.output_text("pw_stat_n", inline=True), class_="stat-value pw-n"),
-                        class_="stat-card",
-                    ),
-                    ui.div(
-                        ui.div(
-                            "\u03b1 (TYPE I)\u00a0",
-                            tip("Probability of rejecting H\u2080 when it is true."),
-                            class_="stat-label",
-                        ),
-                        ui.div(ui.output_text("pw_stat_alpha", inline=True), class_="stat-value pw-alpha"),
-                        class_="stat-card",
-                    ),
-                    ui.div(
-                        ui.div(
-                            "POWER (1\u2212\u03b2)\u00a0",
-                            tip("Probability of rejecting H\u2080 when H\u2081 is true."),
-                            class_="stat-label",
-                        ),
-                        ui.div(ui.output_text("pw_stat_power", inline=True), class_="stat-value pw-power"),
-                        class_="stat-card",
-                    ),
-                    class_="stats-row",
-                ),
+                # Stats row — dynamic per metric type
+                ui.output_ui("pw_stats_row"),
 
                 # Charts — left: stacked distributions; right: power curve
                 ui.div(
-                    # Left column: sampling distributions + Cohen's d overlap
+                    # Left column: sampling distributions + effect overlap
                     ui.div(
                         ui.div(
                             ui.div("H\u2080 / H\u2081 SAMPLING DISTRIBUTIONS", class_="card-title"),
@@ -176,7 +127,7 @@ def power_panel() -> ui.Tag:
                             class_="glass-card chart-card",
                         ),
                         ui.div(
-                            ui.div("POPULATION DISTRIBUTIONS & COHEN'S d", class_="card-title"),
+                            ui.div("EFFECT SIZE VISUALISATION", class_="card-title"),
                             ui.output_ui("pw_overlap_plot"),
                             class_="glass-card chart-card",
                         ),

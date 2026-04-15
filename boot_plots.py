@@ -273,16 +273,16 @@ def draw_boot_coverage(coverage_dict, total, conf_level, dark=True):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 5. Convergence analysis — FPR vs N
+# 5. Convergence analysis — Non-coverage rate vs N
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def draw_boot_convergence(results, alpha, dark=True):
-    """Line chart: FPR vs sample-size N for each CI method + reference test.
+    """Line chart: non-coverage rate vs sample-size N for each CI method.
 
     Parameters
     ----------
     results : list[dict]
-        Each dict has keys: "N", "method", "fpr", "se".
+        Each dict has keys: "N", "method", "fpr" (non-coverage rate), "se".
     alpha : float
         Nominal significance level (e.g. 0.05).
     """
@@ -295,7 +295,8 @@ def draw_boot_convergence(results, alpha, dark=True):
             text="Click \u201cRun Convergence\u201d to start the simulation",
             showarrow=False, font=dict(size=13, color=ann_col),
         )
-        fig.update_layout(xaxis_title="Sample size N", yaxis_title="FPR")
+        fig.update_layout(xaxis_title="Sample size N",
+                          yaxis_title="Non-coverage rate (1 \u2212 coverage)")
         return fig
 
     # Group by method
@@ -339,7 +340,7 @@ def draw_boot_convergence(results, alpha, dark=True):
                       dash="dot" if is_ref else "solid"),
             marker=dict(size=6 if not is_ref else 5),
             name=method,
-            text=[f"{method}: FPR={f:.3f} ± {s:.3f}<br>N={n}"
+            text=[f"{method}: {f:.3f} \u00b1 {s:.3f}<br>N={n}"
                   for n, f, s in zip(ns, fprs, ses)],
             hoverinfo="text",
         ))
@@ -355,7 +356,7 @@ def draw_boot_convergence(results, alpha, dark=True):
 
     fig.update_layout(
         xaxis_title="Sample size N",
-        yaxis_title="False Positive Rate",
+        yaxis_title="Non-coverage rate (1 \u2212 coverage)",
         xaxis=dict(type="log", dtick=1),
         yaxis=dict(range=[0, max_y * 1.05]),
         showlegend=True,

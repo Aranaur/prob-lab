@@ -231,7 +231,9 @@ def boot_server(input, output, session, is_dark):
             "BCa":         ui.span("BCa\u00a0", tip("Bias-Corrected and Accelerated. Best for skewed distributions")),
         }
         if stat == "mean":
-            choices["Studentized"] = ui.span("Studentized\u00a0", tip("Bootstrap-t. Uses original sample standard error"))
+            choices["Studentized"] = ui.span("Studentized\u00a0", tip("Bootstrap-t: uses sample SE = s/\u221an. "
+                                                                     "Can be unstable at small n (high variance of t*). "
+                                                                     "Often outperformed by BCa when n < 30."))
         with reactive.isolate():
             try:
                 cur = list(input.boot_ci_methods())

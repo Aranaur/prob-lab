@@ -241,18 +241,23 @@ def boot_panel() -> ui.Tag:
                                 ui.HTML(
                                     "<strong>What this shows:</strong> "
                                     "For each sample size N, the simulation runs <em>1\u202f000 independent experiments</em> "
-                                    "and measures how often each CI method <em>fails to cover</em> the true parameter "
-                                    "(False Positive Rate). "
+                                    "and measures the <em>non-coverage rate</em> \u2014 how often each CI method "
+                                    "fails to contain the true parameter \u03b8. "
                                     "A well-calibrated method should stay near the nominal \u03b1 line. "
-                                    "Shaded bands show \u00b11.96\u00d7SE of the FPR estimate across experiments."
+                                    "Shaded bands show \u00b11.96\u00d7SE across experiments."
+                                    "<br>"
+                                    "<strong>Note:</strong> this is coverage error (1\u2009\u2212\u2009coverage), "
+                                    "not the classical A/B-test FPR where H\u2080:\u2009\u03b8\u2009=\u20090. "
+                                    "Here true \u03b8 is the population value of the chosen statistic."
                                     "<br>"
                                     "<strong>Sidebar controls that matter here:</strong> "
-                                    "\u2018Distribution\u2019 (shape of the data), "
-                                    "\u2018Statistic\u2019 (what we estimate), "
-                                    "\u2018CI Methods\u2019 (which intervals to compare), "
-                                    "and \u2018Conf. level\u2019 (\u03b1 reference line). "
-                                    "<em>Sample size (n) and B are fixed internally: "
-                                    "N \u2208 {5,\u200910,\u200920,\u200930,\u200950,\u2009100,\u2009200,\u2009500}, B\u2009=\u2009400.</em>"
+                                    "\u2018Distribution\u2019, "
+                                    "\u2018Statistic\u2019, "
+                                    "\u2018CI Methods\u2019, "
+                                    "and \u2018Conf. level\u2019. "
+                                    "<em>N \u2208 {5,\u200910,\u200920,\u200930,\u200950,\u2009100,\u2009200,\u2009500}; "
+                                    "B\u2009=\u2009400 resamples per experiment "
+                                    "(BCa and Studentized estimates may be unstable at the smallest N).</em>"
                                 ),
                                 class_="info-banner-text",
                                 style="margin-bottom:0.5rem; flex-shrink:0;",
@@ -271,7 +276,7 @@ def boot_panel() -> ui.Tag:
                             ),
                             # Chart
                             ui.div(
-                                ui.div("FPR vs SAMPLE SIZE",
+                                ui.div("NON-COVERAGE RATE vs SAMPLE SIZE",
                                        class_="card-title"),
                                 ui.output_ui("boot_conv_plot"),
                                 class_="glass-card chart-card",

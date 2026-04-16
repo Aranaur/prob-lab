@@ -219,7 +219,7 @@ def server(input, output, session):
             valid = {"wald", "wilson", "clopper_pearson"}
             ui.update_select("ci_method",
                 choices={
-                    "wald":            "Wald  (normal approx.)",
+                    "wald":            "Wald \u26a0 (poor for small n / extreme p)",
                     "wilson":          "Wilson  (score, recommended)",
                     "clopper_pearson": "Clopper-Pearson  (exact)",
                 },
@@ -229,7 +229,7 @@ def server(input, output, session):
             ui.update_select("ci_method",
                 choices={
                     "t":         "t-interval  (unknown \u03c3)",
-                    "z":         "z-interval  (known \u03c3)",
+                    "z":         "z-interval  (known \u03c3) \u26a0 rarely realistic",
                     "bootstrap": "Bootstrap   (percentile, B\u200a=\u200a500)",
                 },
                 selected=pm if pm in valid else "t")
@@ -773,6 +773,74 @@ def server(input, output, session):
     @render.text
     def ci_num_total():
         return f"{total_drawn():,}"
+
+    # ── Undercoverage verdict (coverage vs nominal with SE guard) ────────
+    @render.ui
+    def ci_cov_verdict():
+        td = total_drawn()
+        if td < 30:
+            return ui.div(
+                "collecting samples\u2026",
+                style=("font-size:0.68rem; color:var(--c-text3); "
+                       "font-style:italic; margin-top:2px;"),
+            )
+        cov = total_covered() / td
+        nominal = input.ci_conf_level() / 100.0
+        se = (cov * (1 - cov) / td) ** 0.5
+        gap = cov - nominal
+        if gap < -2 * se:
+            return ui.div(
+                "\u26a0 Undercoverage (below ", f"{nominal*100:.0f}%", ")",
+                style=("font-size:0.72rem; color:#f87171; "
+                       "font-weight:600; margin-top:2px;"),
+            )
+        if gap > 2 * se:
+            return ui.div(
+                "Overcoverage (above ", f"{nominal*100:.0f}%", ")",
+                style=("font-size:0.72rem; color:#fbbf24; "
+                       "font-weight:600; margin-top:2px;"),
+            )
+        return ui.div(
+            "\u2713 on target (\u2248 ", f"{nominal*100:.0f}%", ")",
+            style=("font-size:0.72rem; color:#34d399; "
+                   "font-weight:600; margin-top:2px;"),
+        )
+
+    # ── Decision framing: does the latest CI contain the null value? ─────
+    @render.ui
+    def ci_decision():
+        hist = history()
+        if not hist:
+            return ui.div()
+        last = hist[-1]
+        lo, hi = last["lower"], last["upper"]
+        stat = input.ci_statistic()
+        # Pick a reasonable null per statistic
+        if stat == "proportion":
+            null_val, null_lbl = 0.5, "0.5 (fair)"
+        elif stat == "variance":
+            null_val, null_lbl = 1.0, "1"
+        else:
+            null_val, null_lbl = 0.0, "0"
+        contains = lo <= null_val <= hi
+        verdict = ("Yes \u2192 not statistically significant"
+                   if contains else
+                   "No \u2192 statistically significant")
+        color = "#fbbf24" if contains else "#34d399"
+        return ui.div(
+            ui.tags.span(
+                f"Last CI: [{lo:.3g}, {hi:.3g}] \u00b7 ",
+                style="color:var(--c-text3);",
+            ),
+            ui.tags.span(
+                f"Includes null ({null_lbl}): ",
+                style="color:var(--c-text3);",
+            ),
+            ui.tags.span(verdict, style=f"color:{color}; font-weight:600;"),
+            style=("font-size:0.75rem; text-align:center; "
+                   "margin:6px 12px 2px; padding-top:6px; "
+                   "border-top:1px solid var(--c-border);"),
+        )
 
     # ── Dynamic labels ───────────────────────────────────────────────────
     @render.text

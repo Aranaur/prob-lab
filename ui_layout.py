@@ -56,19 +56,25 @@ app_ui = ui.page_fluid(
                 # ── LEFT SIDEBAR: controls ────────────────────────────────────
                 ui.div(
 
-                    # Misconception banner
+                    # Interpretation panel — Correct vs Incorrect framing
                     ui.div(
                         ui.tags.i(class_="info-icon"),
-                        ui.tags.strong(" Common Misconception: "),
-                        "A ", ui.output_text("ci_conf_pct", inline=True),
-                        " CI does NOT mean a ",
-                        ui.output_text("ci_conf_pct2", inline=True),
-                        " probability the true parameter lies within it.",
+                        ui.tags.strong(" Interpreting a Confidence Interval"),
                         ui.tags.br(),
-                        ui.tags.strong("Reality: "),
-                        "If we repeat sampling many times, ",
-                        ui.output_text("ci_conf_pct3", inline=True),
-                        " of intervals will contain the true parameter.",
+                        ui.tags.strong("Correct: "),
+                        ui.output_text("ci_conf_pct", inline=True),
+                        " of intervals cover \u03b8 over repeated samples.",
+                        ui.tags.br(),
+                        ui.tags.strong("Incorrect: "),
+                        "\u201cThis interval has ",
+                        ui.output_text("ci_conf_pct2", inline=True),
+                        " probability of containing \u03b8.\u201d",
+                        ui.tags.br(),
+                        ui.tags.em(
+                            "Any single interval either contains \u03b8 or not \u2014 the ",
+                            ui.output_text("ci_conf_pct3", inline=True),
+                            " refers to the procedure, not this specific interval.",
+                        ),
                         class_="info-banner-text",
                     ),
 
@@ -108,16 +114,23 @@ app_ui = ui.page_fluid(
                         "ci_method",
                         ui.TagList("CI Method", tip(
                             "t-interval: uses sample s, assumes normal sampling distribution. "
-                            "z-interval: uses true population \u03c3 (known). "
+                            "z-interval: uses true population \u03c3 (known) \u2014 rarely realistic. "
                             "Bootstrap: resamples from the observed data \u2014 no distributional assumptions."
                         )),
                         choices={
                             "t":         "t-interval  (unknown \u03c3)",
-                            "z":         "z-interval  (known \u03c3)",
+                            "z":         "z-interval  (known \u03c3) \u26a0 rarely realistic",
                             "bootstrap": "Bootstrap   (percentile, B\u200a=\u200a500)",
                         },
                         selected="t",
                         width="100%",
+                    ),
+
+                    # Bootstrap-method note (points to the richer Bootstrap Explorer)
+                    ui.div(
+                        "Advanced bootstrap methods (BCa, Studentized) \u2192 Bootstrap Explorer",
+                        style=("font-size:0.72rem; color:var(--c-text3); "
+                               "font-style:italic; margin:-6px 0 8px 2px;"),
                     ),
 
                     # Scenario presets
@@ -190,6 +203,7 @@ app_ui = ui.page_fluid(
                         ui.div(
                             ui.div("CI COVERAGE\u00a0", tip("Percentage of all generated CIs that contain the true \u03bc."), class_="stat-label"),
                             ui.div(ui.output_text("ci_cov_rate", inline=True), class_="stat-value coverage"),
+                            ui.output_ui("ci_cov_verdict"),
                             class_="stat-card",
                         ),
                         ui.div(
@@ -234,6 +248,12 @@ app_ui = ui.page_fluid(
                             ),
                             ui.div(
                                 ui.div("CI WIDTH DISTRIBUTION", class_="card-title"),
+                                ui.div(
+                                    "Narrower intervals are not always better \u2014 "
+                                    "they may undercover the true value.",
+                                    style=("font-size:0.72rem; color:var(--c-text3); "
+                                           "font-style:italic; margin:-4px 12px 4px;"),
+                                ),
                                 ui.output_ui("ci_width_plot"),
                                 class_="glass-card chart-card",
                             ),
@@ -248,7 +268,14 @@ app_ui = ui.page_fluid(
                             ),
                             ui.div(
                                 ui.div("CONFIDENCE INTERVALS", class_="card-title"),
+                                ui.div(
+                                    "Each interval either contains \u03b8 or not \u2014 "
+                                    "the confidence level describes the procedure across many samples.",
+                                    style=("font-size:0.72rem; color:var(--c-text3); "
+                                           "font-style:italic; margin:-4px 12px 4px;"),
+                                ),
                                 ui.output_ui("ci_plot"),
+                                ui.output_ui("ci_decision"),
                                 class_="glass-card chart-card chart-card-ci",
                             ),
                             class_="charts-col-right",

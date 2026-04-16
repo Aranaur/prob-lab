@@ -104,13 +104,41 @@ def server(input, output, session):
             "Discrete, right-skewed counts with small \u03bb. "
             "t-interval under-covers because the sampling distribution is not yet symmetric.",
         ),
+        "heavy_skew": (
+            "Heavy skew / outlier shock",
+            "Log-normal(\u03bc\u2097\u2099\u200a=\u200a0, \u03c3\u2097\u2099\u200a=\u200a2.5), n\u200a=\u200a10, t-interval. "
+            "Extreme right skew: a single rare observation dominates the sample mean. "
+            "CI width explodes sample-to-sample and coverage drops sharply \u2014 "
+            "most of your uncertainty comes from the tail, not the body.",
+        ),
+        "false_conf": (
+            "False confidence trap",
+            "Normal(0,\u00a01), n\u200a=\u200a30, t-interval, confidence\u200a=\u200a80%, null\u200a=\u200a0. "
+            "H\u2080 is true by construction, and the CI is well-calibrated. "
+            "Because the nominal level is 80%, \u2248 20% of intervals exclude 0 by design \u2014 "
+            "pure Type I error. Watch the decision verdict flash red on ~1 in 5 samples: "
+            "\u201csignificant\u201d doesn't mean \u201creal effect.\u201d",
+        ),
     }
 
-    def _ci_set_preset(dist, method, n, statistic="mean", **params):
+    def _ci_set_preset(dist, method, n, statistic="mean", conf=None, **params):
         # Store values in reactive vars so re-rendered dynamic UIs pick them up
         _ci_preset_stat.set(statistic)
         _ci_preset_method.set(method)
         _ci_preset_params.set({"ci_sample_size": n, **params})
+        # Reset accumulated state so each preset starts clean \u2014 handles cases
+        # where two presets share dist/method/statistic but differ in n or conf
+        # (e.g. "Ideal" and "False confidence"), which wouldn't trigger _reset.
+        total_drawn.set(0)
+        total_covered.set(0)
+        history.set([])
+        all_widths.set(deque(maxlen=MAX_DATA))
+        all_estimates.set(deque(maxlen=MAX_DATA))
+        prop_x.set(deque(maxlen=MAX_DATA))
+        prop_y.set(deque(maxlen=MAX_DATA))
+        last_sample.set([])
+        is_playing.set(False)
+        ui.update_action_button("ci_btn_play", label="Play")
         # Trigger distribution change (re-renders ci_dynamic_params + ci_statistic_ui)
         ui.update_select("ci_pop_dist", selected=dist)
         # Belt-and-suspenders: also send direct updates for same-dist case
@@ -118,12 +146,14 @@ def server(input, output, session):
         ui.update_select("ci_statistic",    selected=statistic)
         ui.update_select("ci_method",       selected=method)
         ui.update_numeric("ci_sample_size", value=n)
+        if conf is not None:
+            ui.update_slider("ci_conf_level", value=conf)
 
     @reactive.effect
     @reactive.event(input.ci_pre_ideal)
     def _ci_pr_ideal():
         _ci_active_preset.set("ideal")
-        _ci_set_preset("normal", "t", 30,
+        _ci_set_preset("normal", "t", 30, conf=95,
                        ci_pop_mean=0.0, ci_pop_sd=1.0)
 
     @reactive.effect
@@ -154,6 +184,20 @@ def server(input, output, session):
         _ci_active_preset.set("poisson")
         _ci_set_preset("poisson", "t", 20,
                        ci_pois_lam=2.0)
+
+    @reactive.effect
+    @reactive.event(input.ci_pre_heavy)
+    def _ci_pr_heavy():
+        _ci_active_preset.set("heavy_skew")
+        _ci_set_preset("lognormal", "t", 10,
+                       ci_lnorm_mu=0.0, ci_lnorm_sigma=2.5)
+
+    @reactive.effect
+    @reactive.event(input.ci_pre_false_conf)
+    def _ci_pr_false_conf():
+        _ci_active_preset.set("false_conf")
+        _ci_set_preset("normal", "t", 30, conf=80,
+                       ci_pop_mean=0.0, ci_pop_sd=1.0)
 
     @render.ui
     def ci_preset_desc():
@@ -807,6 +851,8 @@ def server(input, output, session):
         )
 
     # ── Decision framing: does the latest CI contain the null value? ─────
+    # Since this module knows the true \u03b8, we also label Type I / Type II
+    # outcomes so users don't mistake a Type-I interval for a real finding.
     @render.ui
     def ci_decision():
         hist = history()
@@ -822,21 +868,50 @@ def server(input, output, session):
             null_val, null_lbl = 1.0, "1"
         else:
             null_val, null_lbl = 0.0, "0"
+
+        try:
+            true_val = float(true_value())
+        except Exception:
+            true_val = null_val
+        # Tolerance relative to the null magnitude (handles both 0 and non-zero)
+        tol = 1e-6 * max(1.0, abs(null_val))
+        h0_true = abs(true_val - null_val) < tol
+
         contains = lo <= null_val <= hi
-        verdict = ("Yes \u2192 not statistically significant"
-                   if contains else
-                   "No \u2192 statistically significant")
-        color = "#fbbf24" if contains else "#34d399"
+
+        if contains and h0_true:
+            verdict = "Yes \u2192 not significant (H\u2080 retained \u2014 correct)"
+            color = "#34d399"
+        elif contains and not h0_true:
+            verdict = ("Yes \u2192 not significant "
+                       "\u26a0 Type II (H\u2080 is false, but retained)")
+            color = "#fbbf24"
+        elif (not contains) and h0_true:
+            verdict = ("No \u2192 significant "
+                       "\u26a0 Type I / false positive under H\u2080")
+            color = "#f87171"
+        else:
+            verdict = "No \u2192 significant (effect detected \u2014 correct)"
+            color = "#34d399"
+
         return ui.div(
-            ui.tags.span(
-                f"Last CI: [{lo:.3g}, {hi:.3g}] \u00b7 ",
-                style="color:var(--c-text3);",
+            ui.div(
+                ui.tags.span(
+                    f"Last CI: [{lo:.3g}, {hi:.3g}] \u00b7 ",
+                    style="color:var(--c-text3);",
+                ),
+                ui.tags.span(
+                    f"Includes null ({null_lbl}): ",
+                    style="color:var(--c-text3);",
+                ),
+                ui.tags.span(verdict, style=f"color:{color}; font-weight:600;"),
             ),
-            ui.tags.span(
-                f"Includes null ({null_lbl}): ",
-                style="color:var(--c-text3);",
+            ui.div(
+                "In real experiments the truth is unknown \u2014 "
+                "Type\u202fI / Type\u202fII labels are only visible here because this is a simulation.",
+                style=("font-size:0.68rem; color:var(--c-text3); "
+                       "font-style:italic; margin-top:4px;"),
             ),
-            ui.tags.span(verdict, style=f"color:{color}; font-weight:600;"),
             style=("font-size:0.75rem; text-align:center; "
                    "margin:6px 12px 2px; padding-top:6px; "
                    "border-top:1px solid var(--c-border);"),

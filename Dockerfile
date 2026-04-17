@@ -17,7 +17,7 @@ COPY --chown=user:user pyproject.toml uv.lock ./
 RUN uv sync --frozen
 
 # Копіюємо всі модулі додатку та папку зі стилями
-COPY --chown=user:user app.py ui_layout.py server.py plots.py utils.py ./
+COPY --chown=user:user app.py ui_layout.py server.py plots.py utils.py ci_methods.py ./
 COPY --chown=user:user pvalue_ui.py pvalue_server.py pvalue_plots.py ./
 COPY --chown=user:user power_ui.py power_server.py power_plots.py ./
 COPY --chown=user:user gof_ui.py gof_server.py gof_plots.py ./
@@ -26,6 +26,8 @@ COPY --chown=user:user mt_ui.py mt_server.py mt_plots.py ./
 COPY --chown=user:user seq_ui.py seq_server.py seq_plots.py ./
 COPY --chown=user:user vr_ui.py vr_server.py vr_plots.py ./
 COPY --chown=user:user boot_ui.py boot_server.py boot_plots.py ./
+COPY --chown=user:user bayes_ui.py bayes_server.py bayes_plots.py ./
+
 COPY --chown=user:user css/ ./css/
 
 # Відкриваємо порт

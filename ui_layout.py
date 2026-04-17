@@ -12,6 +12,7 @@ from mt_ui import mt_panel
 from seq_ui import seq_panel
 from vr_ui import vr_panel
 from boot_ui import boot_panel
+from bayes_ui import bayes_panel
 
 app_ui = ui.page_fluid(
 
@@ -317,6 +318,9 @@ app_ui = ui.page_fluid(
 
         # ── Tab 9: Bootstrap Explorer ──────────────────────────────────────
         boot_panel(),
+
+        # ── Tab 10: Bayesian Explorer ──────────────────────────────────────
+        bayes_panel(),
 
         ui.nav_spacer(),
         ui.nav_control(

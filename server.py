@@ -10,6 +10,7 @@ from shiny import reactive, render, ui
 
 from utils import tip
 from plots import draw_ci_plot, draw_prop_plot, draw_width_plot, draw_means_plot, draw_population_plot
+from ci_methods import compute_ci_mean, compute_ci_proportion, compute_ci_bootstrap
 from pvalue_server import pvalue_server
 from power_server import power_server
 from gof_server import gof_server
@@ -18,6 +19,7 @@ from mt_server import mt_server
 from seq_server import seq_server
 from vr_server import vr_server
 from boot_server import boot_server
+from bayes_server import bayes_server
 
 # Plotly → HTML config (modebar hidden, responsive sizing)
 _PLOTLY_CONFIG = {"displayModeBar": False, "responsive": True}
@@ -52,6 +54,7 @@ def server(input, output, session):
     seq_server(input, output, session, is_dark)
     vr_server(input, output, session, is_dark)
     boot_server(input, output, session, is_dark)
+    bayes_server(input, output, session, is_dark)
 
     MAX_DISPLAY = 50      # CI intervals shown on chart
     MAX_DATA    = 10_000  # rolling window for histogram / proportion data
@@ -686,62 +689,20 @@ def server(input, output, session):
         method = input.ci_method()
 
         if method == "t" and stat_type == "mean":
-            stds = np.std(samps, axis=0, ddof=1)
-            ses  = stds / np.sqrt(n)
-            tc   = float(stats.t.ppf(1 - (1 - conf) / 2, df=n - 1))
-            los  = estimates - tc * ses
-            his  = estimates + tc * ses
+            los, his = compute_ci_mean(samps, method="t", level=conf)
 
         elif method == "z" and stat_type == "mean":
-            zc  = float(stats.norm.ppf(1 - (1 - conf) / 2))
-            los = estimates - zc * (sigma / np.sqrt(n))
-            his = estimates + zc * (sigma / np.sqrt(n))
+            los, his = compute_ci_mean(samps, method="z", level=conf, sigma=sigma)
 
         elif stat_type == "proportion":
             n_eff = n * binom_m   # total Bernoulli trials per sample
-            alpha_ci = 1 - conf
-            zc = float(stats.norm.ppf(1 - alpha_ci / 2))
-            phat = estimates       # shape (k,)
-
-            if method == "wald":
-                se  = np.sqrt(phat * (1 - phat) / n_eff)
-                los = phat - zc * se
-                his = phat + zc * se
-                # intentionally NOT clipping — shows Wald breaking near 0/1
-
-            elif method == "wilson":
-                z2    = zc ** 2
-                denom = 1 + z2 / n_eff
-                ctr   = (phat + z2 / (2 * n_eff)) / denom
-                marg  = zc * np.sqrt(phat * (1 - phat) / n_eff + z2 / (4 * n_eff**2)) / denom
-                los   = np.clip(ctr - marg, 0.0, 1.0)
-                his   = np.clip(ctr + marg, 0.0, 1.0)
-
-            else:  # clopper_pearson
-                k_succ = np.round(phat * n_eff).astype(int)
-                los = np.where(k_succ == 0, 0.0,
-                               stats.beta.ppf(alpha_ci / 2, k_succ, n_eff - k_succ + 1))
-                his = np.where(k_succ == n_eff, 1.0,
-                               stats.beta.ppf(1 - alpha_ci / 2, k_succ + 1, n_eff - k_succ))
+            k_succ = np.round(estimates * n_eff).astype(int)
+            los, his = compute_ci_proportion(k_succ, n_eff, method=method, level=conf)
 
         else:  # bootstrap — percentile method, B=500 resamples
-            B   = 500
-            idx   = np.random.randint(0, n, size=(B, n, k))
-            j_idx = np.arange(k)[np.newaxis, np.newaxis, :]
-            boot_samps = samps[idx, j_idx]                 # (B, n, k)
-            if stat_type == "mean":
-                boot_stats = boot_samps.mean(axis=1)
-            elif stat_type == "median":
-                boot_stats = np.median(boot_samps, axis=1)
-            elif stat_type == "variance":
-                boot_stats = np.var(boot_samps, axis=1, ddof=1)
-            elif stat_type == "percentile":
-                boot_stats = np.percentile(boot_samps, p_level, axis=1)
-            else:
-                boot_stats = boot_samps.mean(axis=1)
-            alpha_pct = (1 - conf) * 100
-            los = np.percentile(boot_stats, alpha_pct / 2,       axis=0)
-            his = np.percentile(boot_stats, 100 - alpha_pct / 2, axis=0)
+            los, his = compute_ci_bootstrap(
+                samps, level=conf, statistic=stat_type, p_level=p_level, B=500,
+            )
 
         ws  = his - los
         tv  = true_value()

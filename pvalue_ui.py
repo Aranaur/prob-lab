@@ -27,6 +27,28 @@ def pvalue_panel() -> ui.Tag:
                     class_="info-banner-text",
                 ),
 
+                # ── Mode selector ─────────────────────────────────────────────
+                ui.input_select(
+                    "pv_mode",
+                    ui.TagList(
+                        "Simulation mode",
+                        tip(
+                            "Single experiment: the true value is fixed for every simulated test. "
+                            "Shows properties of the test (Type\u00a0I error, power). "
+                            "Experiment pipeline: each test is drawn from H\u2080 with probability \u03c0 "
+                            "(no real effect) or from H\u2081 with probability 1\u2212\u03c0 (effect = True value). "
+                            "Shows False Positive Risk \u2014 P(H\u2080 | reject) \u2014 the A/B-testing reality."
+                        ),
+                    ),
+                    choices={
+                        "single":   "Single experiment",
+                        "pipeline": "Experiment pipeline (\u03c0, FPR)",
+                    },
+                    selected="single",
+                    width="100%",
+                ),
+                ui.output_ui("pv_pi_control"),
+
                 # ── Hypothesis specification ──────────────────────────────────
 
                 # Test structure
@@ -195,6 +217,17 @@ def pvalue_panel() -> ui.Tag:
                 ),
                 ui.output_ui("pv_outlier_slider"),
 
+                # ── Cross-reference: Sequential Testing ───────────────────────
+                ui.div(
+                    ui.tags.strong("See also: "),
+                    "curious how checking p-values every day inflates false positives? "
+                    "The ",
+                    ui.tags.em("Sequential Testing"),
+                    " tab covers peeking, O\u2019Brien\u2013Fleming, Pocock, and Haybittle\u2013Peto boundaries.",
+                    class_="info-banner-text",
+                    style="margin: 6px 0;",
+                ),
+
                 # ── Sampling controls ─────────────────────────────────────────
                 ui.div(
                     # Row 1: sample size (hidden for two-sample — n lives in group params)
@@ -254,6 +287,7 @@ def pvalue_panel() -> ui.Tag:
                         class_="stat-card",
                     ),
                     ui.output_ui("pv_reject_stat_card"),
+                    ui.output_ui("pv_fpr_stat_card"),
                     ui.div(
                         ui.div(
                             "TOTAL EXPERIMENTS\u00a0",
@@ -294,11 +328,28 @@ def pvalue_panel() -> ui.Tag:
                         ),
                         class_="charts-col-left",
                     ),
-                    # Right column: null distribution (main chart)
+                    # Right column: null distribution + effect-size inflation
                     ui.div(
                         ui.div(
                             ui.div("NULL DISTRIBUTION & TEST STATISTIC", class_="card-title"),
                             ui.output_ui("pv_null_dist_plot"),
+                            class_="glass-card chart-card",
+                        ),
+                        ui.div(
+                            ui.div(
+                                "EFFECT SIZE INFLATION (WINNER'S CURSE)\u00a0",
+                                tip(
+                                    "Each dot is one simulation. Purple = significant (p < \u03b1), "
+                                    "grey = non-significant. "
+                                    "The solid blue line is the true effect; the dashed purple line "
+                                    "is the average observed effect among significant results. "
+                                    "Their gap is the Winner\u2019s Curse \u2014 under low power, "
+                                    "only the lucky extremes cross the \u03b1 threshold, so published "
+                                    "significant effects exaggerate reality."
+                                ),
+                                class_="card-title",
+                            ),
+                            ui.output_ui("pv_effect_scatter_plot"),
                             class_="glass-card chart-card",
                         ),
                         class_="charts-col-right",

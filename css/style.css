@@ -575,6 +575,8 @@ body.light-mode .np-preset-hint--active { border-color: #ea580c; }
   min-width: 0;
   display: flex;
   flex-direction: column;
+  gap: 8px;
+  min-height: 0;
 }
 
 /* Chart card: fills its flex slot */

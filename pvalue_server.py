@@ -10,7 +10,12 @@ from scipy.stats import nct as nct_dist
 from shiny import reactive, render, ui
 
 from utils import tip
-from pvalue_plots import draw_null_dist_plot, draw_pvalue_hist, draw_power_diagram
+from pvalue_plots import (
+    draw_null_dist_plot,
+    draw_pvalue_hist,
+    draw_power_diagram,
+    draw_effect_scatter,
+)
 
 _PLOTLY_CONFIG = {"displayModeBar": False, "responsive": True}
 
@@ -29,12 +34,19 @@ def pvalue_server(input, output, session, is_dark):
     pv_rejected = reactive.value(0)
     pv_last_stat: reactive.Value[float | None] = reactive.value(None)
     pv_all_pvalues: reactive.Value[deque]      = reactive.value(deque(maxlen=MAX_DATA))
+    pv_all_effects: reactive.Value[deque]      = reactive.value(deque(maxlen=MAX_DATA))
     pv_is_playing = reactive.value(False)
     pv_speed_ms   = reactive.value(0.5)
 
     # Wilcoxon comparison state
     pv_wilcoxon_rejected = reactive.value(0)
     pv_wilcoxon_pvalues: reactive.Value[deque] = reactive.value(deque(maxlen=MAX_DATA))
+
+    # Pipeline-mode state (FPR tracking)
+    pv_is_null_true: reactive.Value[deque] = reactive.value(deque(maxlen=MAX_DATA))
+    pv_null_count       = reactive.value(0)   # experiments drawn from H₀
+    pv_false_positives  = reactive.value(0)   # reject ∩ null-true
+    pv_true_positives   = reactive.value(0)   # reject ∩ null-false
 
     # Preset state
     _pv_active_preset = reactive.value(None)
@@ -64,6 +76,15 @@ def pvalue_server(input, output, session, is_dark):
     def _get_rho()     -> float:
         r = _safe(input.pv_rho, 0.0)
         return max(-0.999, min(0.999, r))
+    def _get_mode()    -> str:
+        try:
+            m = input.pv_mode()
+            return m if m in ("single", "pipeline") else "single"
+        except Exception:
+            return "single"
+    def _get_pi()      -> float:
+        p = _safe(input.pv_pi, 0.8)
+        return max(0.0, min(1.0, p))
 
     # ── Computed SE and df for the current test design ────────────────────────
     @reactive.calc
@@ -206,37 +227,67 @@ def pvalue_server(input, output, session, is_dark):
     def pv_n_control():
         return ui.div()
 
+    @render.ui
+    def pv_pi_control():
+        if _get_mode() != "pipeline":
+            return ui.div()
+        with reactive.isolate():
+            cur = _get_pi()
+        return ui.input_slider(
+            "pv_pi",
+            ui.TagList(
+                "Prior null rate (\u03c0)",
+                tip(
+                    "Share of simulated experiments that have no real effect "
+                    "(drawn from H\u2080). "
+                    "In real A/B testing typically 70\u201395\u202f%. "
+                    "Higher \u03c0 \u2192 higher False Positive Risk for the same \u03b1 and power."
+                ),
+            ),
+            min=0.0, max=1.0, value=cur, step=0.05, width="100%",
+        )
+
     # ── Scenario presets ──────────────────────────────────────────────────────
     _PV_PRESET_DESC = {
         "h0": (
             "H\u2080 true (Type\u00a0I error)",
             "One-sample, \u03bc_true\u200a=\u200a\u03bc\u2080\u200a=\u200a0, \u03c3\u200a=\u200a1, n\u200a=\u200a30. "
             "p-values are uniform on [0,\u00a01] \u2014 exactly \u03b1 of tests reject H\u2080. "
-            "The textbook definition of Type\u00a0I error rate.",
+            "The textbook definition of Type\u00a0I error rate. "
+            "Look at the p-value distribution: after ~500 samples it should flatten into a uniform rectangle, "
+            "and the reject rate should hover around \u03b1.",
         ),
         "under": (
             "Low power study",
             "One-sample, \u03bc_true\u200a=\u200a0.2, \u03c3\u200a=\u200a1, n\u200a=\u200a10. "
             "Real effect exists but power \u2248\u200a12\u202f%. "
-            "Most p-values exceed 0.05 \u2014 shows why small studies fail to replicate.",
+            "Most p-values exceed 0.05 \u2014 shows why small studies fail to replicate. "
+            "Look at the Winner\u2019s Curse chart: the handful of significant runs sit far above the true-effect line "
+            "\u2014 published small studies systematically overstate effects.",
         ),
         "largen": (
             "Large n inflation",
             "One-sample, \u03bc_true\u200a=\u200a0.1, \u03c3\u200a=\u200a1, n\u200a=\u200a300. "
             "Tiny effect (d\u200a=\u200a0.1) but power \u2248\u200a95\u202f% \u2014 almost all p < 0.05. "
-            "Illustrates statistical vs practical significance.",
+            "Illustrates statistical vs practical significance. "
+            "Look at the current p-value vs the observed effect: you reject H\u2080 almost every time, "
+            "yet the effect (0.1\u00a0\u03c3) may be too small to matter in practice.",
         ),
         "outlier": (
             "Outlier disruption + Wilcoxon",
             "One-sample, \u03bc_true\u200a=\u200a0.5, \u03c3\u200a=\u200a1, n\u200a=\u200a20, outlier on, Wilcoxon on. "
             "A single opposing outlier pushes t-test p-values toward non-significance. "
-            "Wilcoxon signed-rank resists the contamination.",
+            "Wilcoxon signed-rank resists the contamination. "
+            "Look at the two overlapping histograms: the orange Wilcoxon curve concentrates near zero, "
+            "while the blue t-test spreads toward 1 \u2014 the reject-rate gap is the cost of one bad point.",
         ),
         "paired": (
             "Paired design efficiency",
             "Paired, \u03bc_true\u200a=\u200a0.3, \u03c3\u200a=\u200a1, \u03c1\u200a=\u200a0.7, n\u200a=\u200a20. "
             "High within-pair correlation shrinks SD of differences. "
-            "Power is much greater than an independent two-sample design with the same n.",
+            "Power is much greater than an independent two-sample design with the same n. "
+            "Look at the Power Diagram: \u03c1\u200a=\u200a0.7 collapses the H\u2081 distribution away from the critical value, "
+            "so theoretical power is close to 90\u202f% \u2014 switch Test structure to Two-sample to see it drop sharply.",
         ),
     }
 
@@ -387,14 +438,20 @@ def pvalue_server(input, output, session, is_dark):
     @reactive.effect
     @reactive.event(input.pv_btn_reset, input.pv_mu0, input.pv_alternative,
                     input.pv_test_method, input.pv_test_structure,
-                    input.pv_outlier_on, input.pv_wilcoxon_on)
+                    input.pv_outlier_on, input.pv_wilcoxon_on,
+                    input.pv_mode)
     def _pv_reset():
         pv_total.set(0)
         pv_rejected.set(0)
         pv_last_stat.set(None)
         pv_all_pvalues.set(deque(maxlen=MAX_DATA))
+        pv_all_effects.set(deque(maxlen=MAX_DATA))
         pv_wilcoxon_rejected.set(0)
         pv_wilcoxon_pvalues.set(deque(maxlen=MAX_DATA))
+        pv_is_null_true.set(deque(maxlen=MAX_DATA))
+        pv_null_count.set(0)
+        pv_false_positives.set(0)
+        pv_true_positives.set(0)
         pv_is_playing.set(False)
         ui.update_action_button("pv_btn_play", label="Play")
 
@@ -408,6 +465,7 @@ def pvalue_server(input, output, session, is_dark):
         alternative = input.pv_alternative()
         method      = input.pv_test_method()
         structure   = input.pv_test_structure()
+        mode        = _get_mode()
 
         try:
             outlier_on = bool(input.pv_outlier_on())
@@ -419,11 +477,24 @@ def pvalue_server(input, output, session, is_dark):
         # reduces power for any magnitude (larger mag → more broken test).
         _eff_sign = float(np.sign(mu_true - mu0)) if abs(mu_true - mu0) > 1e-9 else 1.0
 
+        # Pipeline mode: per-experiment hypothesis indicator.
+        # True  → drawn from H₀ (mean = mu0 everywhere).
+        # False → drawn from H₁ (mean = mu_true for group 1 / paired component).
+        if mode == "pipeline":
+            pi = _get_pi()
+            is_null_vec = np.random.rand(k) < pi  # (k,) bool
+        else:
+            is_null_vec = np.zeros(k, dtype=bool)  # all drawn from H₁
+
+        # Per-experiment true mean for group 1 / one-sample / paired component A
+        mu_exp = np.where(is_null_vec, mu0, mu_true).astype(float)  # (k,)
+
         if structure == "one":
             # ── One-sample ──────────────────────────────────────────────────
-            samps = np.random.normal(mu_true, sigma1, size=(n1, k))
+            noise = np.random.normal(0.0, sigma1, size=(n1, k))
+            samps = noise + mu_exp                                     # (n1, k)
             if outlier_on:
-                samps[0, :] = mu_true - _eff_sign * outlier_mag * sigma1
+                samps[0, :] = mu_exp - _eff_sign * outlier_mag * sigma1
             means = samps.mean(axis=0)
             if method == "z":
                 ses      = np.full(k, sigma1 / np.sqrt(n1))
@@ -434,19 +505,19 @@ def pvalue_server(input, output, session, is_dark):
                 ses      = stds / np.sqrt(n1)
                 stat_arr = (means - mu0) / ses
                 pvals    = _pval(stat_arr, alternative, method, df=n1 - 1)
+            effects_arr = means - mu0
 
         elif structure == "two":
             # ── Two-sample independent ──────────────────────────────────────
             sigma2 = _get_sigma2()
             n2     = _get_n2()
-            # true group means: μ₁ = mu_true + mu0/2, μ₂ = mu_true - mu0/2?
-            # Simpler: group 1 mean = mu_true, group 2 mean = 0,
-            # so true difference = mu_true - 0 = mu_true.
-            # null: difference = mu0.
-            s1 = np.random.normal(mu_true, sigma1, size=(n1, k))
-            s2 = np.random.normal(0.0,     sigma2, size=(n2, k))
+            # Group 1 mean = mu_exp (mu_true under H₁, mu0 under H₀).
+            # Group 2 mean is fixed at 0, so the true difference equals
+            # mu_exp in H₁ experiments and mu0 in H₀ experiments.
+            s1 = np.random.normal(0.0, sigma1, size=(n1, k)) + mu_exp
+            s2 = np.random.normal(0.0, sigma2, size=(n2, k))
             if outlier_on:
-                s1[0, :] = mu_true - _eff_sign * outlier_mag * sigma1
+                s1[0, :] = mu_exp - _eff_sign * outlier_mag * sigma1
             d  = s1.mean(axis=0) - s2.mean(axis=0)   # observed difference
 
             if method == "z":
@@ -470,21 +541,24 @@ def pvalue_server(input, output, session, is_dark):
                     _pval_scalar(float(t), alternative, "t", int(max(df, 1)))
                     for t, df in zip(stat_arr, df_w)
                 ])
+            effects_arr = d - mu0
 
         else:
             # ── Paired ──────────────────────────────────────────────────────
             sigma2 = _get_sigma2()
             rho    = _get_rho()
-            # Correlated bivariate normal
+            # Correlated bivariate normal with zero means, then shift
+            # component A by mu_exp per experiment so that the mean of
+            # differences equals mu_exp (mu_true under H₁, mu0 under H₀).
             cov    = rho * sigma1 * sigma2
             cov_mx = np.array([[sigma1**2, cov], [cov, sigma2**2]])
-            means_pair = [mu_true, 0.0]
             # shape (n1, k, 2)
-            pairs = np.random.multivariate_normal(means_pair, cov_mx, size=(n1, k))
-            diffs = pairs[:, :, 0] - pairs[:, :, 1]   # (n1, k)
+            pairs = np.random.multivariate_normal([0.0, 0.0], cov_mx, size=(n1, k))
+            pairs[:, :, 0] = pairs[:, :, 0] + mu_exp                       # (n1, k)
+            diffs = pairs[:, :, 0] - pairs[:, :, 1]                        # (n1, k)
             if outlier_on:
                 sigma_d = np.sqrt(sigma1**2 + sigma2**2 - 2 * rho * sigma1 * sigma2)
-                diffs[0, :] = mu_true - _eff_sign * outlier_mag * sigma_d
+                diffs[0, :] = mu_exp - _eff_sign * outlier_mag * sigma_d
             d_bar = diffs.mean(axis=0)
 
             if method == "z":
@@ -497,8 +571,10 @@ def pvalue_server(input, output, session, is_dark):
                 se_t     = sd_d / np.sqrt(n1)
                 stat_arr = (d_bar - mu0) / se_t
                 pvals    = _pval(stat_arr, alternative, "t", df=n1 - 1)
+            effects_arr = d_bar - mu0
 
-        new_rejected = int((pvals < alpha).sum())
+        reject_mask  = pvals < alpha
+        new_rejected = int(reject_mask.sum())
         pv_total.set(pv_total() + k)
         pv_rejected.set(pv_rejected() + new_rejected)
         pv_last_stat.set(float(stat_arr[-1]))
@@ -506,6 +582,24 @@ def pvalue_server(input, output, session, is_dark):
         pv = deque(pv_all_pvalues(), maxlen=MAX_DATA)
         pv.extend(float(p) for p in pvals)
         pv_all_pvalues.set(pv)
+
+        ev = deque(pv_all_effects(), maxlen=MAX_DATA)
+        ev.extend(float(e) for e in effects_arr)
+        pv_all_effects.set(ev)
+
+        # Pipeline-mode bookkeeping
+        nv = deque(pv_is_null_true(), maxlen=MAX_DATA)
+        nv.extend(bool(b) for b in is_null_vec)
+        pv_is_null_true.set(nv)
+
+        if mode == "pipeline":
+            pv_null_count.set(pv_null_count() + int(is_null_vec.sum()))
+            pv_false_positives.set(
+                pv_false_positives() + int((reject_mask & is_null_vec).sum())
+            )
+            pv_true_positives.set(
+                pv_true_positives() + int((reject_mask & ~is_null_vec).sum())
+            )
 
         # ── Wilcoxon / Mann-Whitney comparison ───────────────────────────
         try:
@@ -647,6 +741,36 @@ def pvalue_server(input, output, session, is_dark):
             return "\u2014"
         return f"{100 * pv_wilcoxon_rejected() / wn:.1f}%"
 
+    @render.text
+    def pv_fpr_value():
+        fp = pv_false_positives()
+        tp = pv_true_positives()
+        total_rej = fp + tp
+        if total_rej == 0:
+            return "\u2014"
+        return f"{100 * fp / total_rej:.1f}%"
+
+    @render.ui
+    def pv_fpr_stat_card():
+        if _get_mode() != "pipeline":
+            return ui.div()
+        return ui.div(
+            ui.div(
+                "FPR\u00a0",
+                tip(
+                    "False Positive Risk = P(H\u2080 | reject) = "
+                    "false positives / all rejections. "
+                    "The share of your 'significant' findings that are actually null. "
+                    "Driven by \u03c0 (base rate), \u03b1, and power \u2014 often 20\u201350\u202f% "
+                    "in real A/B testing even with \u03b1 = 0.05."
+                ),
+                class_="stat-label",
+            ),
+            ui.div(ui.output_text("pv_fpr_value", inline=True),
+                   class_="stat-value missed"),
+            class_="stat-card",
+        )
+
     @render.ui
     def pv_reject_stat_card():
         try:
@@ -737,6 +861,22 @@ def pvalue_server(input, output, session, is_dark):
             pvalues_wilcoxon=wil_pvals,
             wilcoxon_label=wil_label,
             param_label=method,
+        )
+        return _fig_to_ui(fig)
+
+    @render.ui
+    def pv_effect_scatter_plot():
+        mode        = _get_mode()
+        true_effect = _get_mu_true() - _get_mu0()
+        null_vec    = list(pv_is_null_true()) if mode == "pipeline" else None
+        fig = draw_effect_scatter(
+            effects=list(pv_all_effects()),
+            pvalues=list(pv_all_pvalues()),
+            alpha=input.pv_alpha(),
+            true_effect=true_effect,
+            dark=is_dark(),
+            is_null=null_vec,
+            null_effect=0.0,                # effects are centered on H₀ (x̄ − μ₀)
         )
         return _fig_to_ui(fig)
 

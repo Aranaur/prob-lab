@@ -9,6 +9,8 @@ import plotly.graph_objects as go
 
 from plots import _DARK_LAYOUT, _LIGHT_LAYOUT, _LABEL, _LIGHT_LABEL, _base_fig, _theme
 
+_JITTER_RNG_SEED = 42
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 1.  Null distribution with rejection region + p-value area
 #     method="t" → t(df),   method="z" → N(0,1)
@@ -231,6 +233,183 @@ def draw_pvalue_hist(
         font=dict(size=10, color=t["annot_text"]),
         bgcolor=t["annot_bg"], bordercolor=t["annot_border"], borderwidth=1, borderpad=3,
     )
+
+    return fig
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 2b. Winner's Curse — observed effect vs significance scatter
+#     Highlights effect-size inflation among p<α results (selection bias).
+# ─────────────────────────────────────────────────────────────────────────────
+def draw_effect_scatter(
+    effects: list,
+    pvalues: list,
+    alpha: float,
+    true_effect: float,
+    dark: bool = True,
+    is_null: list | None = None,
+    null_effect: float = 0.0,
+) -> go.Figure:
+    t = _theme(dark)
+    _ax = _DARK_LAYOUT["xaxis"] if dark else _LIGHT_LAYOUT["xaxis"]
+
+    fig = _base_fig(
+        dark=dark,
+        xaxis=dict(
+            **_ax,
+            title=dict(text="Simulation (jitter)", font=dict(size=10, color=t["label"])),
+            range=[0, 1],
+            showticklabels=False,
+        ),
+        yaxis=dict(
+            **_ax,
+            title=dict(text="Observed effect (x\u0304 \u2212 \u03bc\u2080)",
+                       font=dict(size=10, color=t["label"])),
+        ),
+    )
+
+    n = min(len(effects), len(pvalues))
+    if n < 5:
+        fig.add_annotation(
+            xref="paper", yref="paper", x=0.5, y=0.5,
+            text="Collecting data\u2026", showarrow=False,
+            font=dict(size=13, color=t["muted"]),
+        )
+        return fig
+
+    eff = np.asarray(effects[-n:], dtype=float)
+    pv  = np.asarray(pvalues[-n:], dtype=float)
+    sig_mask = pv < alpha
+
+    pipeline = is_null is not None
+    if pipeline:
+        null_vec = np.asarray(is_null[-n:], dtype=bool)
+    else:
+        null_vec = np.zeros(n, dtype=bool)
+
+    rng = np.random.default_rng(_JITTER_RNG_SEED)
+    jitter = rng.uniform(0.05, 0.95, size=n)
+
+    # ── Non-significant cloud (grey) ──────────────────────────────────────────
+    nonsig = ~sig_mask
+    if nonsig.any():
+        fig.add_trace(go.Scatter(
+            x=jitter[nonsig], y=eff[nonsig],
+            mode="markers",
+            marker=dict(color="rgba(148,163,184,0.45)", size=5,
+                        line=dict(width=0)),
+            hovertemplate="observed = %{y:.3f}<br>p \u2265 \u03b1<extra></extra>",
+            showlegend=False,
+        ))
+
+    # ── Significant points ────────────────────────────────────────────────────
+    if pipeline:
+        # Split by source: false positives (red) vs true positives (purple)
+        fp = sig_mask & null_vec
+        tp = sig_mask & ~null_vec
+        if tp.any():
+            fig.add_trace(go.Scatter(
+                x=jitter[tp], y=eff[tp],
+                mode="markers",
+                marker=dict(color="#c084fc", size=6.5,
+                            line=dict(width=0.4, color="#a855f7")),
+                hovertemplate="observed = %{y:.3f}<br>true positive<extra></extra>",
+                showlegend=False,
+            ))
+        if fp.any():
+            fig.add_trace(go.Scatter(
+                x=jitter[fp], y=eff[fp],
+                mode="markers",
+                marker=dict(color="#f87171", size=6.5,
+                            line=dict(width=0.4, color="#dc2626")),
+                hovertemplate="observed = %{y:.3f}<br>FALSE POSITIVE<extra></extra>",
+                showlegend=False,
+            ))
+    else:
+        if sig_mask.any():
+            fig.add_trace(go.Scatter(
+                x=jitter[sig_mask], y=eff[sig_mask],
+                mode="markers",
+                marker=dict(color="#c084fc", size=6.5,
+                            line=dict(width=0.4, color="#a855f7")),
+                hovertemplate="observed = %{y:.3f}<br>p < \u03b1<extra></extra>",
+                showlegend=False,
+            ))
+
+    # ── Reference lines ───────────────────────────────────────────────────────
+    if pipeline:
+        fig.add_hline(
+            y=null_effect,
+            line_color="#94a3b8", line_width=1.2, line_dash="dot",
+            annotation_text=f"H\u2080 = {null_effect:.3f}",
+            annotation_position="top left",
+            annotation_font=dict(size=10, color="#94a3b8"),
+        )
+    fig.add_hline(
+        y=true_effect,
+        line_color="#38bdf8", line_width=1.6, line_dash="solid",
+        annotation_text=f"H\u2081 = {true_effect:.3f}" if pipeline
+                         else f"true = {true_effect:.3f}",
+        annotation_position="top right" if pipeline else "top left",
+        annotation_font=dict(size=10, color="#38bdf8"),
+    )
+
+    # ── Annotation block ──────────────────────────────────────────────────────
+    if pipeline:
+        fp_n = int((sig_mask & null_vec).sum())
+        tp_n = int((sig_mask & ~null_vec).sum())
+        total_rej = fp_n + tp_n
+        if total_rej >= 3:
+            fpr = fp_n / total_rej
+            lines = [
+                f"Rejections: {total_rej} / {n}",
+                f"<span style='color:#f87171'>False positives: {fp_n} "
+                f"({fpr:.0%} of rejections)</span>",
+                f"<span style='color:#c084fc'>True positives: {tp_n}</span>",
+            ]
+            fig.add_annotation(
+                xref="paper", yref="paper", x=0.98, y=0.98,
+                xanchor="right", yanchor="top",
+                text="<br>".join(lines),
+                showarrow=False,
+                font=dict(size=10, color=t["annot_text"]),
+                bgcolor=t["annot_bg"], bordercolor=t["annot_border"],
+                borderwidth=1, borderpad=4, align="right",
+            )
+    else:
+        if sig_mask.sum() >= 3:
+            mean_sig = float(eff[sig_mask].mean())
+            fig.add_hline(
+                y=mean_sig,
+                line_color="#c084fc", line_width=1.4, line_dash="dash",
+                annotation_text=f"mean\u2009|\u2009p<\u03b1 = {mean_sig:.3f}",
+                annotation_position="bottom left",
+                annotation_font=dict(size=10, color="#c084fc"),
+            )
+            inflation = mean_sig - true_effect
+            if abs(true_effect) > 1e-9:
+                ratio = mean_sig / true_effect
+                inflation_line = (
+                    f"Inflation: {inflation:+.3f} "
+                    f"(\u00d7{ratio:.2f} of true)"
+                )
+            else:
+                inflation_line = f"Inflation: {inflation:+.3f} (true\u2009=\u20090)"
+
+            sig_frac = float(sig_mask.mean())
+            fig.add_annotation(
+                xref="paper", yref="paper", x=0.98, y=0.98,
+                xanchor="right", yanchor="top",
+                text=(
+                    f"Significant: {int(sig_mask.sum())} / {n} "
+                    f"({sig_frac:.0%})<br>"
+                    f"{inflation_line}"
+                ),
+                showarrow=False,
+                font=dict(size=10, color=t["annot_text"]),
+                bgcolor=t["annot_bg"], bordercolor=t["annot_border"],
+                borderwidth=1, borderpad=4, align="right",
+            )
 
     return fig
 

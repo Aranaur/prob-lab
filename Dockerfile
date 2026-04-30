@@ -1,6 +1,9 @@
 # Використовуємо легкий офіційний образ Python 3.11
 FROM python:3.11-slim
 
+# Встановлюємо uv через копіювання бінарника (надійніше)
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
 # Створюємо користувача "user" з ID 1000 (обов'язкова вимога Hugging Face)
 RUN useradd -m -u 1000 user
 
@@ -11,8 +14,9 @@ RUN chown user:user /app
 USER user
 ENV PATH="/home/user/.local/bin:$PATH"
 
-# Встановлюємо uv
-RUN pip install --no-cache-dir uv
+# Налаштування uv для роботи в Docker (запобігає зависанням через hardlinks)
+ENV UV_LINK_MODE=copy
+ENV UV_COMPILE_BYTECODE=1
 
 # Копіюємо конфігурацію залежностей та встановлюємо їх
 COPY --chown=user:user pyproject.toml uv.lock ./

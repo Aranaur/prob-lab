@@ -17,13 +17,8 @@ from seq_plots import (
     draw_seq_stopping_hist,
     draw_seq_error_bars,
 )
+from theme import fig_to_ui
 
-_PLOTLY_CONFIG = {"displayModeBar": False, "responsive": True}
-
-
-def _fig_to_ui(fig):
-    html = fig.to_html(full_html=False, include_plotlyjs=False, config=_PLOTLY_CONFIG)
-    return ui.div(ui.HTML(html), class_="plotly-container")
 
 
 # ── Boundary helpers ─────────────────────────────────────────────────────────
@@ -423,7 +418,7 @@ def seq_server(input, output, session, is_dark):
             stop_ns=stops,
             dark=dark,
         )
-        return _fig_to_ui(fig)
+        return fig_to_ui(fig)
 
     @render.ui
     def seq_boundary_plot():
@@ -439,7 +434,7 @@ def seq_server(input, output, session, is_dark):
             hp_z=bnd["hp_z"],
             dark=dark,
         )
-        return _fig_to_ui(fig)
+        return fig_to_ui(fig)
 
     @render.ui
     def seq_stop_plot():
@@ -450,7 +445,7 @@ def seq_server(input, output, session, is_dark):
             N=_get_N(),
             dark=dark,
         )
-        return _fig_to_ui(fig)
+        return fig_to_ui(fig)
 
     @render.ui
     def seq_error_plot():
@@ -485,4 +480,4 @@ def seq_server(input, output, session, is_dark):
             seq_power=seq_power,
             dark=dark,
         )
-        return _fig_to_ui(fig)
+        return fig_to_ui(fig)

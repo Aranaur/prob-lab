@@ -13,18 +13,12 @@ from boot_plots import (
     draw_boot_distribution,
     draw_boot_ci_forest,
     draw_boot_coverage,
+    draw_boot_coverage,
     draw_boot_convergence,
 )
+from theme import fig_to_ui
 
-_PLOTLY_CFG = {"displayModeBar": False, "responsive": True}
 
-
-def _fig_html(fig):
-    return ui.div(
-        ui.HTML(fig.to_html(full_html=False, include_plotlyjs=False,
-                            config=_PLOTLY_CFG)),
-        class_="plotly-container",
-    )
 
 
 # ── Data generation ─────────────────────────────────────────────────────────
@@ -629,7 +623,7 @@ def boot_server(input, output, session, is_dark):
             return ui.div("Draw samples to begin.", class_="chart-placeholder")
         fig = draw_boot_sample(
             sample, _last_counts(), _last_theta(), _true_theta(), dark)
-        return _fig_html(fig)
+        return fig_to_ui(fig)
 
     @render.ui
     def boot_dist_plot():
@@ -645,7 +639,7 @@ def boot_server(input, output, session, is_dark):
             float(np.std(boot, ddof=1)),
             _last_z0(), _last_a(), dark,
         )
-        return _fig_html(fig)
+        return fig_to_ui(fig)
 
     @render.ui
     def boot_ci_plot():
@@ -655,14 +649,14 @@ def boot_server(input, output, session, is_dark):
             return ui.div("Complete an experiment to see CIs.",
                           class_="chart-placeholder")
         fig = draw_boot_ci_forest(cis, _last_theta(), _true_theta(), dark)
-        return _fig_html(fig)
+        return fig_to_ui(fig)
 
     @render.ui
     def boot_coverage_plot():
         dark = is_dark()
         conf = float(input.boot_conf() or 95)
         fig = draw_boot_coverage(_cov_counts(), _total(), conf, dark)
-        return _fig_html(fig)
+        return fig_to_ui(fig)
 
     # ═══════════════════════════════════════════════════════════════════════
     # Convergence Analysis (N vs FPR)

@@ -5,6 +5,8 @@
 import numpy as np
 import plotly.graph_objects as go
 
+from theme import _DARK_LAYOUT, _LIGHT_LAYOUT, _base_fig, _theme
+
 # ── colour tokens ──────────────────────────────────────────────────────────────
 _C_NAIVE  = "#f87171"   # red   — naive estimator
 _C_METHOD = "#38bdf8"   # cyan  — CUPED / VWE
@@ -13,33 +15,6 @@ _C_TREAT  = "#34d399"   # green — treatment group
 _C_REG    = "#38bdf8"   # cyan  — regular users
 _C_POWER  = "#f97316"   # orange — power users
 _C_GOLD   = "#fbbf24"   # gold  — annotations
-
-_DARK_BG    = "#0f172a"
-_DARK_PAPER = "rgba(30,41,59,0.60)"
-_DARK_GRID  = "rgba(148,163,184,0.08)"
-_DARK_TEXT  = "#cbd5e1"
-
-_LIGHT_BG    = "#ffffff"
-_LIGHT_PAPER = "rgba(241,245,249,0.85)"
-_LIGHT_GRID  = "rgba(100,116,139,0.10)"
-_LIGHT_TEXT  = "#334155"
-
-
-def _base_fig(dark: bool = True) -> go.Figure:
-    bg    = _DARK_BG    if dark else _LIGHT_BG
-    paper = _DARK_PAPER if dark else _LIGHT_PAPER
-    grid  = _DARK_GRID  if dark else _LIGHT_GRID
-    txt   = _DARK_TEXT  if dark else _LIGHT_TEXT
-    fig = go.Figure()
-    fig.update_layout(
-        paper_bgcolor=paper, plot_bgcolor=bg,
-        font=dict(color=txt, size=11),
-        margin=dict(l=48, r=16, t=10, b=40),
-        xaxis=dict(gridcolor=grid, zerolinecolor=grid),
-        yaxis=dict(gridcolor=grid, zerolinecolor=grid),
-        legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(size=10)),
-    )
-    return fig
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -50,7 +25,7 @@ def draw_cuped_scatter(x_ctrl, y_ctrl, x_treat, y_treat,
                        theta, delta_hat, dark=True):
     """Scatter X vs Y with two parallel regression lines (slope = θ̂)."""
     fig = _base_fig(dark)
-    ann_col = _DARK_TEXT if dark else _LIGHT_TEXT
+    ann_col = _theme(dark)["label"]
 
     # Subsample for rendering performance
     _MAX = 300
@@ -103,7 +78,7 @@ def draw_cuped_scatter(x_ctrl, y_ctrl, x_treat, y_treat,
 def draw_cuped_variance_bars(var_naive, var_cuped, rho, n, dark=True):
     """Bar chart: Var(Δ̂) naive vs CUPED with reduction + equivalent-N annotation."""
     fig = _base_fig(dark)
-    ann_col = _DARK_TEXT if dark else _LIGHT_TEXT
+    ann_col = _theme(dark)["label"]
     vals = [var_naive, var_cuped]
 
     fig.add_trace(go.Bar(
@@ -236,7 +211,7 @@ def draw_vwe_ci_bars(ci_naive, ci_vwe, dark=True):
         text=[f"{v:.3f}" for v in vals], textposition="outside",
     ))
     if ci_naive > 0:
-        ann_col = _DARK_TEXT if dark else _LIGHT_TEXT
+        ann_col = _theme(dark)["label"]
         fig.add_annotation(
             x=0.5, y=max(vals) * 1.18, xref="paper",
             text=f"Reduction: {(1 - ci_vwe / ci_naive) * 100:.1f}%",

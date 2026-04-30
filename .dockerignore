@@ -1,0 +1,19 @@
+# Version control
+.git
+.gitignore
+
+# Environment and IDE
+.venv/
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Development artifacts
+scratch/
+plans/
+.cursor/
+tests/
+
+# CI / CD
+.github/

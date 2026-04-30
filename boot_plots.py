@@ -5,6 +5,8 @@
 import numpy as np
 import plotly.graph_objects as go
 
+from theme import _DARK_LAYOUT, _LIGHT_LAYOUT, _base_fig, _theme
+
 # ── colour tokens ──────────────────────────────────────────────────────────────
 _C_ORIG   = "#94a3b8"   # slate — original sample
 _C_RESAMP = "#38bdf8"   # cyan  — resampled highlights
@@ -24,33 +26,6 @@ _REF_COLORS = {
     "t-test":   "#fbbf24",
     "Wilcoxon": "#fbbf24",
 }
-
-_DARK_BG    = "#0f172a"
-_DARK_PAPER = "rgba(30,41,59,0.60)"
-_DARK_GRID  = "rgba(148,163,184,0.08)"
-_DARK_TEXT  = "#cbd5e1"
-
-_LIGHT_BG    = "#ffffff"
-_LIGHT_PAPER = "rgba(241,245,249,0.85)"
-_LIGHT_GRID  = "rgba(100,116,139,0.10)"
-_LIGHT_TEXT  = "#334155"
-
-
-def _base_fig(dark: bool = True) -> go.Figure:
-    bg    = _DARK_BG    if dark else _LIGHT_BG
-    paper = _DARK_PAPER if dark else _LIGHT_PAPER
-    grid  = _DARK_GRID  if dark else _LIGHT_GRID
-    txt   = _DARK_TEXT  if dark else _LIGHT_TEXT
-    fig = go.Figure()
-    fig.update_layout(
-        paper_bgcolor=paper, plot_bgcolor=bg,
-        font=dict(color=txt, size=11),
-        margin=dict(l=48, r=16, t=10, b=40),
-        xaxis=dict(gridcolor=grid, zerolinecolor=grid),
-        yaxis=dict(gridcolor=grid, zerolinecolor=grid),
-        legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(size=10)),
-    )
-    return fig
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -115,7 +90,7 @@ def draw_boot_distribution(boot_stats, theta_hat, true_theta, cis,
                            bias, se_boot, bca_z0, bca_a, dark=True):
     """Histogram of θ̂* with CI boundary lines, bias / SE annotations."""
     fig = _base_fig(dark)
-    ann_col = _DARK_TEXT if dark else _LIGHT_TEXT
+    ann_col = _theme(dark)["label"]
 
     if len(boot_stats) > 0:
         fig.add_trace(go.Histogram(
@@ -228,7 +203,7 @@ def draw_boot_ci_forest(cis, theta_hat, true_theta, dark=True):
 def draw_boot_coverage(coverage_dict, total, conf_level, dark=True):
     """Bar chart: empirical coverage % per CI method with nominal reference."""
     fig = _base_fig(dark)
-    ann_col = _DARK_TEXT if dark else _LIGHT_TEXT
+    ann_col = _theme(dark)["label"]
 
     if not coverage_dict or total == 0:
         fig.add_annotation(
@@ -287,7 +262,7 @@ def draw_boot_convergence(results, alpha, dark=True):
         Nominal significance level (e.g. 0.05).
     """
     fig = _base_fig(dark)
-    ann_col = _DARK_TEXT if dark else _LIGHT_TEXT
+    ann_col = _theme(dark)["label"]
 
     if not results:
         fig.add_annotation(

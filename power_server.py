@@ -14,13 +14,9 @@ from power_plots import (
     draw_prop_distributions, draw_prop_effect,
     draw_ratio_distributions, draw_ratio_effect,
 )
+from theme import fig_to_ui
 
-_PLOTLY_CONFIG = {"displayModeBar": False, "responsive": True}
 
-
-def _fig_to_ui(fig):
-    html = fig.to_html(full_html=False, include_plotlyjs=False, config=_PLOTLY_CONFIG)
-    return ui.div(ui.HTML(html), class_="plotly-container")
 
 
 # ── Core power computation (continuous) ──────────────────────────────────────
@@ -1306,14 +1302,14 @@ def power_server(input, output, session, is_dark):
                 r0=r0, r1=d_or_p1, n=n, alpha=alpha, power=power,
                 alternative=input.pw_alternative(), var_r=var_r, dark=is_dark(),
             )
-            return _fig_to_ui(fig)
+            return fig_to_ui(fig)
 
         if _is_prop():
             fig = draw_prop_distributions(
                 p0=_p0(), p1=d_or_p1, n=n, alpha=alpha, power=power,
                 alternative=input.pw_alternative(), dark=is_dark(),
             )
-            return _fig_to_ui(fig)
+            return fig_to_ui(fig)
 
         tt    = input.pw_test_type()
         solve = input.pw_solve_for()
@@ -1325,7 +1321,7 @@ def power_server(input, output, session, is_dark):
             alternative=input.pw_alternative(),
             test_type=tt, df=df, dark=is_dark(),
         )
-        return _fig_to_ui(fig)
+        return fig_to_ui(fig)
 
     @render.ui
     def pw_curve_plot():
@@ -1337,7 +1333,7 @@ def power_server(input, output, session, is_dark):
             current_n=n, current_power=power,
             alpha=alpha, dark=is_dark(),
         )
-        return _fig_to_ui(fig)
+        return fig_to_ui(fig)
 
     @render.ui
     def pw_overlap_plot():
@@ -1350,11 +1346,11 @@ def power_server(input, output, session, is_dark):
             var_r = _var_ratio(mu_x, var_x, mu_y, var_y, cov)
             r0 = mu_x / mu_y if abs(mu_y) > 1e-15 else 0.0
             fig = draw_ratio_effect(r0=r0, r1=d_or_p1, var_r=var_r, dark=is_dark())
-            return _fig_to_ui(fig)
+            return fig_to_ui(fig)
 
         if _is_prop():
             fig = draw_prop_effect(p0=_p0(), p1=d_or_p1, dark=is_dark())
-            return _fig_to_ui(fig)
+            return fig_to_ui(fig)
 
         fig = draw_cohens_d_overlap(d=d_or_p1, dark=is_dark())
-        return _fig_to_ui(fig)
+        return fig_to_ui(fig)

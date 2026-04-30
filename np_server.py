@@ -15,6 +15,7 @@ from np_plots import (
     draw_np_reject_bars,
     draw_np_rank_plot,
 )
+from theme import fig_to_ui
 
 _PLOTLY_CONFIG = {"displayModeBar": False, "responsive": True}
 
@@ -33,11 +34,6 @@ _DIST_CHOICES_PAIRED = {
     "contaminated": "Contaminated Normal",
     "cauchy":       "Cauchy (heavy tails)",
 }
-
-
-def _fig_to_ui(fig):
-    html = fig.to_html(full_html=False, include_plotlyjs=False, config=_PLOTLY_CONFIG)
-    return ui.div(ui.HTML(html), class_="plotly-container")
 
 
 def np_server(input, output, session, is_dark):
@@ -573,7 +569,7 @@ def np_server(input, output, session, is_dark):
         b = np_last_b() if mode == "independent" else None
         prob = np_prob_a_gt_b() if mode == "independent" else None
         fig = draw_np_sample_kde(a, b, prob_a_gt_b=prob, dark=is_dark())
-        return _fig_to_ui(fig)
+        return fig_to_ui(fig)
 
     @render.ui
     def np_pvalue_plot():
@@ -585,7 +581,7 @@ def np_server(input, output, session, is_dark):
             alpha=_get_alpha(), param_label=p_lab, nonparam_label=np_lab,
             dark=is_dark(),
         )
-        return _fig_to_ui(fig)
+        return fig_to_ui(fig)
 
     @render.ui
     def np_reject_plot():
@@ -597,9 +593,9 @@ def np_server(input, output, session, is_dark):
             alpha=_get_alpha(), param_label=p_lab, nonparam_label=np_lab,
             dark=is_dark(),
         )
-        return _fig_to_ui(fig)
+        return fig_to_ui(fig)
 
     @render.ui
     def np_rank_plot():
         fig = draw_np_rank_plot(np_last_a(), np_last_b(), dark=is_dark())
-        return _fig_to_ui(fig)
+        return fig_to_ui(fig)

@@ -16,13 +16,9 @@ from pvalue_plots import (
     draw_power_diagram,
     draw_effect_scatter,
 )
+from theme import fig_to_ui
 
-_PLOTLY_CONFIG = {"displayModeBar": False, "responsive": True}
 
-
-def _fig_to_ui(fig):
-    html = fig.to_html(full_html=False, include_plotlyjs=False, config=_PLOTLY_CONFIG)
-    return ui.div(ui.HTML(html), class_="plotly-container")
 
 
 def pvalue_server(input, output, session, is_dark):
@@ -831,7 +827,7 @@ def pvalue_server(input, output, session, is_dark):
             method=input.pv_test_method(),
             dark=is_dark(),
         )
-        return _fig_to_ui(fig)
+        return fig_to_ui(fig)
 
     @render.ui
     def pv_hist_plot():
@@ -862,7 +858,7 @@ def pvalue_server(input, output, session, is_dark):
             wilcoxon_label=wil_label,
             param_label=method,
         )
-        return _fig_to_ui(fig)
+        return fig_to_ui(fig)
 
     @render.ui
     def pv_effect_scatter_plot():
@@ -878,7 +874,7 @@ def pvalue_server(input, output, session, is_dark):
             is_null=null_vec,
             null_effect=0.0,                # effects are centered on H₀ (x̄ − μ₀)
         )
-        return _fig_to_ui(fig)
+        return fig_to_ui(fig)
 
     @render.ui
     def pv_power_plot():
@@ -895,4 +891,4 @@ def pvalue_server(input, output, session, is_dark):
             method=input.pv_test_method(),
             dark=is_dark(),
         )
-        return _fig_to_ui(fig)
+        return fig_to_ui(fig)

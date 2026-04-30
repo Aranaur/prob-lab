@@ -26,16 +26,9 @@ from bayes_plots import (
     draw_bys3_joint,
     draw_bys3_prob_evolution,
 )
+from theme import fig_to_ui
 
-_PLOTLY_CFG = {"displayModeBar": False, "responsive": True}
 
-
-def _fig_html(fig):
-    return ui.div(
-        ui.HTML(fig.to_html(full_html=False, include_plotlyjs=False,
-                            config=_PLOTLY_CFG)),
-        class_="plotly-container",
-    )
 
 
 def _stat_card(label_text, label_tip, value_html, value_class, sub_html=None):
@@ -364,18 +357,18 @@ def bayes_server(input, output, session, is_dark):
         a, b = _bys1_pp()
         k, n = _bys1_kn()
         fig = draw_bys1_prior_posterior(a, b, k, n, dark=is_dark())
-        return _fig_html(fig)
+        return fig_to_ui(fig)
 
     @render.ui
     def bys1_coin_sequence():
         fig = draw_bys1_coin_sequence(list(_bys1_obs()), dark=is_dark())
-        return _fig_html(fig)
+        return fig_to_ui(fig)
 
     @render.ui
     def bys1_evolution_forest():
         a, b = _bys1_pp()
         fig = draw_bys1_evolution_forest(a, b, list(_bys1_obs()), dark=is_dark())
-        return _fig_html(fig)
+        return fig_to_ui(fig)
 
 
     # ═══════════════════════════════════════════════════════════════════════
@@ -625,19 +618,19 @@ def bayes_server(input, output, session, is_dark):
     def bys2_forest():
         tp, *_ = _bys2_params()
         fig = draw_bys2_forest(list(_bys2_history()), tp, dark=is_dark())
-        return _fig_html(fig)
+        return fig_to_ui(fig)
 
     @render.ui
     def bys2_width_hist():
         fig = draw_bys2_width_hist(list(_bys2_history()), dark=is_dark())
-        return _fig_html(fig)
+        return fig_to_ui(fig)
 
     @render.ui
     def bys2_running_coverage():
         _, _, _, _, _, conf = _bys2_params()
         fig = draw_bys2_running_coverage(list(_bys2_history()),
                                          nominal=conf * 100.0, dark=is_dark())
-        return _fig_html(fig)
+        return fig_to_ui(fig)
 
 
     # ═══════════════════════════════════════════════════════════════════════
@@ -930,7 +923,7 @@ def bayes_server(input, output, session, is_dark):
     def bys3_posteriors():
         aA, bA, aB, bB, *_ = _bys3_post()
         fig = draw_bys3_posteriors(aA, bA, aB, bB, dark=is_dark())
-        return _fig_html(fig)
+        return fig_to_ui(fig)
 
     @render.ui
     def bys3_joint():
@@ -942,11 +935,11 @@ def bayes_server(input, output, session, is_dark):
         else:
             pA, pB = _sample_posteriors(aA, bA, aB, bB, draws, seed)
         fig = draw_bys3_joint(pA, pB, dark=is_dark())
-        return _fig_html(fig)
+        return fig_to_ui(fig)
 
     @render.ui
     def bys3_prob_evolution():
         _, _, _, _, _, thr = _bys3_post()
         fig = draw_bys3_prob_evolution(list(_bys3_trajectory()),
                                        threshold=thr, dark=is_dark())
-        return _fig_html(fig)
+        return fig_to_ui(fig)

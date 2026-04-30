@@ -15,18 +15,13 @@ from mt_plots import (
     draw_mt_fwer_curve,
     draw_mt_pvalue_hist,
 )
+from theme import fig_to_ui
 
-_PLOTLY_CONFIG = {"displayModeBar": False, "responsive": True}
 _METHODS = ["none", "bonferroni", "holm", "bh", "by"]
 _METHOD_LABELS = {
     "none": "None", "bonferroni": "Bonferroni",
     "holm": "Holm", "bh": "BH", "by": "BY",
 }
-
-
-def _fig_to_ui(fig):
-    html = fig.to_html(full_html=False, include_plotlyjs=False, config=_PLOTLY_CONFIG)
-    return ui.div(ui.HTML(html), class_="plotly-container")
 
 
 def _empty_stats():
@@ -349,7 +344,7 @@ def mt_server(input, output, session, is_dark):
             file_drawer=file_drawer,
             dark=dark,
         )
-        return _fig_to_ui(fig)
+        return fig_to_ui(fig)
 
     @render.ui
     def mt_bars_plot():
@@ -360,7 +355,7 @@ def mt_server(input, output, session, is_dark):
             alpha=_get_alpha(),
             dark=is_dark(),
         )
-        return _fig_to_ui(fig)
+        return fig_to_ui(fig)
 
     @render.ui
     def mt_fwer_plot():
@@ -373,7 +368,7 @@ def mt_server(input, output, session, is_dark):
             total=tot,
             dark=is_dark(),
         )
-        return _fig_to_ui(fig)
+        return fig_to_ui(fig)
 
     @render.ui
     def mt_hist_plot():
@@ -388,7 +383,7 @@ def mt_server(input, output, session, is_dark):
             file_drawer=file_drawer,
             dark=is_dark(),
         )
-        return _fig_to_ui(fig)
+        return fig_to_ui(fig)
 
     # ── BH step-by-step table ────────────────────────────────────────────
     @render.ui

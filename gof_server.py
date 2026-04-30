@@ -13,14 +13,9 @@ from gof_plots import (
     draw_ks1_ecdf, draw_ks2_ecdf, draw_chi2_bars,
     draw_qq_plot, draw_gof_null_dist, draw_gof_pvalue_hist,
 )
+from theme import fig_to_ui
 
-_PLOTLY_CONFIG = {"displayModeBar": False, "responsive": True}
 MAX_DATA = 10_000
-
-
-def _fig_to_ui(fig):
-    html = fig.to_html(full_html=False, include_plotlyjs=False, config=_PLOTLY_CONFIG)
-    return ui.div(ui.HTML(html), class_="plotly-container")
 
 
 # ── Distribution helpers ─────────────────────────────────────────────────────
@@ -602,7 +597,7 @@ def gof_server(input, output, session, is_dark):
         else:
             return ui.div()
 
-        return _fig_to_ui(fig)
+        return fig_to_ui(fig)
 
     @render.ui
     def gof_null_plot():
@@ -630,7 +625,7 @@ def gof_server(input, output, session, is_dark):
             alternative=alt,
             dark=dark,
         )
-        return _fig_to_ui(fig)
+        return fig_to_ui(fig)
 
     @render.ui
     def gof_pval_hist():
@@ -639,7 +634,7 @@ def gof_server(input, output, session, is_dark):
             alpha=input.gof_alpha(),
             dark=is_dark(),
         )
-        return _fig_to_ui(fig)
+        return fig_to_ui(fig)
 
 
 def _empty_msg(text: str, dark: bool):

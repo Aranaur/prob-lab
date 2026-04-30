@@ -16,18 +16,12 @@ from vr_plots import (
     draw_vwe_population,
     draw_vwe_variance_decomp,
     draw_vwe_ci_bars,
+    draw_vwe_ci_bars,
     draw_vr_pvalue_hist,
 )
+from theme import fig_to_ui
 
-_PLOTLY_CFG = {"displayModeBar": False, "responsive": True}
 
-
-def _fig_html(fig):
-    return ui.div(
-        ui.HTML(fig.to_html(full_html=False, include_plotlyjs=False,
-                            config=_PLOTLY_CFG)),
-        class_="plotly-container",
-    )
 
 
 def vr_server(input, output, session, is_dark):
@@ -545,7 +539,7 @@ def vr_server(input, output, session, is_dark):
                 return ui.div("Draw samples to see the distribution.",
                               class_="chart-placeholder")
             fig = draw_vwe_population(data["y_reg"], data["y_pow"], dark)
-        return _fig_html(fig)
+        return fig_to_ui(fig)
 
     @render.ui
     def vr_chart2():
@@ -578,7 +572,7 @@ def vr_server(input, output, session, is_dark):
             except Exception:
                 sp = 50.0
             fig = draw_vwe_variance_decomp(pct, sr, sp, dark)
-        return _fig_html(fig)
+        return fig_to_ui(fig)
 
     @render.ui
     def vr_chart3():
@@ -614,7 +608,7 @@ def vr_server(input, output, session, is_dark):
             ci_n = _sum_ci_naive() / tot if tot > 0 else 0.0
             ci_v = _sum_ci_method() / tot if tot > 0 else 0.0
             fig = draw_vwe_ci_bars(ci_n, ci_v, dark)
-        return _fig_html(fig)
+        return fig_to_ui(fig)
 
     @render.ui
     def vr_pvalue_plot():
@@ -625,7 +619,7 @@ def vr_server(input, output, session, is_dark):
             list(_pv_naive()), list(_pv_method()),
             alpha, method_label=label, dark=dark,
         )
-        return _fig_html(fig)
+        return fig_to_ui(fig)
 
 
 # ── helper ──────────────────────────────────────────────────────────────────

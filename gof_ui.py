@@ -130,7 +130,7 @@ def gof_panel() -> ui.Tag:
                     ),
                     ui.div(
                         ui.div(
-                            "TOTAL TOTAL EXPERIMENTS\u00a0",
+                            "TOTAL EXPERIMENTS\u00a0",
                             tip("Total number of goodness-of-fit tests performed."),
                             class_="stat-label",
                         ),

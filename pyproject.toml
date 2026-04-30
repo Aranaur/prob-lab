@@ -1,7 +1,7 @@
 [project]
 name = "prob-lab"
 version = "0.1.0"
-requires-python = ">= 3.11.14"
+requires-python = ">= 3.11"
 dependencies = [
     "numpy>=2.4.3",
     "plotly>=6.1.2",

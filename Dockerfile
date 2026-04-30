@@ -3,11 +3,13 @@ FROM python:3.11-slim
 
 # Створюємо користувача "user" з ID 1000 (обов'язкова вимога Hugging Face)
 RUN useradd -m -u 1000 user
+
+# Встановлюємо робочу директорію та даємо права користувачу
+WORKDIR /app
+RUN chown user:user /app
+
 USER user
 ENV PATH="/home/user/.local/bin:$PATH"
-
-# Встановлюємо робочу директорію
-WORKDIR /app
 
 # Встановлюємо uv
 RUN pip install --no-cache-dir uv
